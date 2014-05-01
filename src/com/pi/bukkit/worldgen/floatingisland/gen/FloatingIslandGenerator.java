@@ -4,8 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-import net.minecraft.server.ChunkPosition;
-
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
@@ -66,7 +64,6 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 	public short[][] generateExtBlockSections(World w, Random random,
 			int chunkX, int chunkZ, BiomeGrid biomes) {
 		short[][] result = new short[16][];
-		long begin = System.currentTimeMillis();
 
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
@@ -87,7 +84,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				int noiseX = realX + x;
 				int noiseZ = realZ + z;
 				Biome biome = biomes.getBiome(x, z);
-				IslandConfig config = IslandConfig.forBiome(Biome.MESA);// biome);
+				IslandConfig config = IslandConfig.forBiome(biome);
 
 				noise.setScale(7, config.hillNoise); // hill
 
@@ -125,7 +122,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 									}
 								}
 							}
-							for (int yO = 0; yO < 45; yO++) {
+							for (int yO = 0; yO < 25; yO++) {
 								for (int r = 0; r < 4; r++) {
 									if (smoother[r] == iTop) {
 										for (int q = -1; q <= 1; q += 2) {
@@ -142,7 +139,8 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 													baseX, baseY + 1, baseZ);
 											double mBelow = noise.noise(1,
 													baseX, baseY - 1, baseZ);
-											if (mHere > mAbove
+											if (mHere > thresh
+													&& mHere > mAbove
 													&& mHere > mBelow) {
 												smoother[r] = baseY;
 											}

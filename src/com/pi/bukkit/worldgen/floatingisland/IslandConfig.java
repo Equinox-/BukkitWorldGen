@@ -34,6 +34,7 @@ public class IslandConfig {
 		grasslands.hillMin = new int[] { 0, 2 };
 		grasslands.hillMax = new int[] { 2, 3 };
 		grasslands.hillNoise = 0.075D;
+		grasslands.smoothSize = 3;
 		biomeMapping.put(Biome.PLAINS, grasslands);
 
 		IslandConfig icePlains = grasslands.clone();
@@ -64,7 +65,6 @@ public class IslandConfig {
 		IslandConfig desert = grasslands.clone();
 		desert.coating = desert.topCoating = new Material[] { Material.SAND };
 		desert.lowerCoating = new Material[] { Material.SANDSTONE };
-		desert.smoothSize = 5;
 		biomeMapping.put(Biome.DESERT, desert);
 
 		IslandConfig desertHills = hills.clone();
@@ -81,6 +81,7 @@ public class IslandConfig {
 		// river.topCoating = new Object[] { Material.WATER };
 		river.smoothSize = SMOOTH_TO_BIOME_EDGE;
 		river.grassNoise = 0;
+		river.topCoating = new Object[] { Material.DIRT };
 		biomeMapping.put(Biome.RIVER, river);
 
 		IslandConfig snowyRiver = river.clone();

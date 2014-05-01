@@ -16,23 +16,17 @@ import com.pi.bukkit.ServerCrossover;
 import com.pi.bukkit.worldgen.floatingisland.LayeredOctaveNoise;
 
 public class RiverGenerator extends BlockPopulator {
-	enum WaterfallType {
-		NONE, NOISY, CLEAN
-	}
-
 	@Override
 	public void populate(World world, Random random, Chunk source) {
 		LayeredOctaveNoise noise = new LayeredOctaveNoise(
 				new SimplexNoiseGenerator(new Random(world.getSeed())), 3);
 		noise.setScale(0, 0.0001D);
 
-		double waterChance = 1.0;
-		int gorgeSize = 3;
-		float gorgeIncline = 1;
-		WaterfallType waterfalls = WaterfallType.CLEAN;
-		int gorgeDepth = 1;
-
-		List<Block> clear = new ArrayList<Block>();
+		List<Block> riverBlocks = new ArrayList<Block>();
+		List<Block> riverBorders = new ArrayList<Block>();
+		List<Block> riverCenters = new ArrayList<Block>();
+		Block riverMax = null;
+		Block riverMin = null;
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
 				int realX = (source.getX() << 4) + x;
@@ -50,92 +44,45 @@ public class RiverGenerator extends BlockPopulator {
 							}
 						}
 					}
-					if (bestY > 2 && random.nextDouble() <= waterChance) {
-						Block tB = source.getBlock(x, bestY - gorgeDepth, z);
-						if (!tB.getRelative(1, 0, 0).isEmpty()
-								&& !tB.getRelative(-1, 0, 0).isEmpty()
-								&& !tB.getRelative(0, 0, -1).isEmpty()
-								&& !tB.getRelative(0, 0, 1).isEmpty()) {
-							clear.add(tB.getRelative(0, 1, 0));
-							{
-								float offset = 0;
-								for (int i = 0; i <= gorgeSize; i++) {
-									if (i != 0) {
-										offset += gorgeIncline;
-										clear.add(tB.getRelative(i,
-												(int) offset, 0));
-										clear.add(tB.getRelative(-i,
-												(int) offset, 0));
-										clear.add(tB.getRelative(0,
-												(int) offset, i));
-										clear.add(tB.getRelative(0,
-												(int) offset, -i));
-									}
-								}
+					if (bestY > 2) {
+						Block tB = source.getBlock(x, bestY, z);
+						riverBlocks.add(tB);
+						if (world.getBiome(realX, realZ - 1) != bb
+								|| world.getBiome(realX, realZ + 1) != bb
+								|| world.getBiome(realX - 1, realZ) != bb
+								|| world.getBiome(realX + 1, realZ) != bb) {
+							riverBorders.add(tB);
+							if (riverMin == null || tB.getY() < riverMin.getY()) {
+								riverMin = tB;
 							}
-							tB.setType(bb == Biome.FROZEN_RIVER ? Material.ICE
-									: Material.WATER);
-							for (int off = 1; off < 5; off++) {
-								Biome b1 = tB.getRelative(off, 0, 0).getBiome();
-								Biome b2 = tB.getRelative(-off, 0, 0)
-										.getBiome();
-								Biome b3 = tB.getRelative(0, 0, off).getBiome();
-								Biome b4 = tB.getRelative(0, 0, -off)
-										.getBiome();
-								if ((b1 == Biome.RIVER || b1 == Biome.FROZEN_RIVER)
-										&& (b2 == Biome.RIVER || b2 == Biome.FROZEN_RIVER)
-										&& (b3 == Biome.RIVER || b3 == Biome.FROZEN_RIVER)
-										&& (b4 == Biome.RIVER || b4 == Biome.FROZEN_RIVER)) {
-									tB.getRelative(0, (int) -Math.sqrt(off), 0)
-											.setType(Material.WATER);
-								} else {
-									break;
-								}
+							if (riverMax == null || tB.getY() > riverMax.getY()) {
+								riverMax = tB;
 							}
+						} else {
+							riverCenters.add(tB);
 						}
 					}
 				}
 			}
 		}
 
-		for (Block b : clear) {
-			if (b.getChunk() == source && b.getType() != Material.WATER) {
-				int limit = 5;
-				for (int yO = 0; yO < 5; yO++) {
-					Block set = b.getRelative(0, yO, 0);
-					if (set != null && set.getType() != Material.AIR) {
-						boolean waterfallFlag = false;
-						switch (waterfalls) {
-						case NONE:
-							waterfallFlag = set.getRelative(-1, 0, 0).getType() == Material.WATER
-									|| set.getRelative(1, 0, 0).getType() == Material.WATER
-									|| set.getRelative(0, 0, -1).getType() == Material.WATER
-									|| set.getRelative(0, 0, 1).getType() == Material.WATER;
-							break;
-						case NOISY:
-							waterfallFlag = false;
-							break;
-						case CLEAN:
-							waterfallFlag = set.getRelative(-1, 0, 0).getType() == Material.WATER
-									|| set.getRelative(1, 0, 0).getType() == Material.WATER
-									|| set.getRelative(0, 0, -1).getType() == Material.WATER
-									|| set.getRelative(0, 0, 1).getType() == Material.WATER;
-							waterfallFlag = waterfallFlag
-									&& set.getRelative(0, -1, 0).getType() != Material.WATER;
-							break;
+		if (riverMin != null && riverMax != null) {
+			for (Block b : riverBlocks) {
+				double minL = b.getLocation().distance(riverMin.getLocation());
+				double maxL = b.getLocation().distance(riverMax.getLocation());
+				double total = minL + maxL;
+				if (total > 0) {
+					minL = total - minL;
+					maxL = total - maxL;
+					minL /= total;
+					maxL /= total;
+
+					double y = minL * riverMin.getY() + maxL * riverMax.getY();
+					if (y < b.getY()) {
+						for (int j = 0; b.getY() - j > y; j++) {
+							b.getRelative(0, -j, 0).setType(Material.AIR);
 						}
-						if (set.getType() == Material.WATER || waterfallFlag) {
-							limit = 0;
-							break;
-						}
-					} else {
-						limit = yO;
-						break;
 					}
-				}
-				for (int yO = 0; yO < limit; yO++) {
-					Block set = b.getRelative(0, yO, 0);
-					set.setType(Material.AIR);
 				}
 			}
 		}
