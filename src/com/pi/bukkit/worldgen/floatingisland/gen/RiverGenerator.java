@@ -12,13 +12,12 @@ import org.bukkit.block.Block;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.util.noise.SimplexNoiseGenerator;
 
+import com.pi.bukkit.ServerCrossover;
 import com.pi.bukkit.worldgen.floatingisland.LayeredOctaveNoise;
 
 public class RiverGenerator extends BlockPopulator {
 	enum WaterfallType {
-		NONE,
-		NOISY,
-		CLEAN
+		NONE, NOISY, CLEAN
 	}
 
 	@Override
@@ -43,9 +42,8 @@ public class RiverGenerator extends BlockPopulator {
 					int bestY = -1;
 					int wantedY = (int) (noise.noise(0, realX, realZ) * 128);
 					for (int y = 120; y >= 0; y--) {
-						if (source.getBlock(x, y + 1, z).getType() == Material.AIR
-								&& source.getBlock(x, y + 3, z).getType() == Material.AIR
-								&& source.getBlock(x, y, z).getType().isSolid()) {
+						Block block = source.getBlock(x, y, z);
+						if (ServerCrossover.isTop(block)) {
 							if (Math.abs(bestY - wantedY) > Math.abs(y
 									- wantedY)) {
 								bestY = y;

@@ -78,12 +78,18 @@ public class LayeredOctaveNoise {
 			for (double zO = -blendSize[layer]; zO <= blendSize[layer]; zO++) {
 				ttl += cleanNoise(gen.noise((x + xO) * scale[layer], y
 						* scale[layer], (layer * 100000D)
-						+ ((z + zO) * scale[layer]), 1, freq[layer],
+						+ ((z + zO) * scale[layer]), 2, freq[layer],
 						amp[layer], true));
 			}
 		}
 		int bArea = (1 + (2 * blendSize[layer]));
 		return ttl / (bArea * bArea);
+	}
+
+	public double noiseSlope(int layer, double x, double y, double z,
+			double dX, double dY, double dZ) {
+		return (noise(layer, x + dX, y + dY, z + dZ) - noise(layer, x, y, z))
+				/ (scale[layer] * Math.sqrt(dX * dX + dY * dY + dZ * dZ));
 	}
 
 	private static double cleanNoise(double d) {

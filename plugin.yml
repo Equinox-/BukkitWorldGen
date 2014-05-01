@@ -1,4 +1,4 @@
-name: FloatingIslandGenerator
+name: EquinoxWorldGen
 version: 0.1
 main: com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin
 load: startup

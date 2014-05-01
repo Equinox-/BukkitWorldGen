@@ -4,42 +4,33 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
-import net.minecraft.server.BiomeBase;
-
+import org.bukkit.DyeColor;
 import org.bukkit.Material;
 import org.bukkit.block.Biome;
+import org.bukkit.inventory.ItemStack;
 
 public class IslandConfig {
-	private final static Map<Biome, IslandConfig> biomeMapping = new HashMap<Biome, IslandConfig>();
-	public final static Map<Biome, BiomeBase> biomeBaseMapping = new HashMap<Biome, BiomeBase>();
 	private final static IslandConfig defaultIslandConfig = new IslandConfig();
+	private static Map<Biome, IslandConfig> biomeMapping = new HashMap<Biome, IslandConfig>();
+	/**
+	 * Beware. This is expensive.
+	 * 
+	 * @see IslandConfig#SMOOTH_TO_BIOME_EDGE_MAX_DIST
+	 */
+	public static int SMOOTH_TO_BIOME_EDGE = 0xDEAD;
+	public static int SMOOTH_TO_BIOME_EDGE_MAX_DIST = 100;
 
 	static {
-		for (Biome b : Biome.values()) {
-			try {
-				Field field = BiomeBase.class.getField(b.name());
-				biomeBaseMapping.put(b, (BiomeBase) field.get(null));
-			} catch (Exception e) {
-			}
-		}
-		biomeBaseMapping.put(Biome.MESA_PLATEAU_FOREST, BiomeBase.MESA_PLATEAU_F);
-
 		IslandConfig hills = new IslandConfig();
 		hills.hillMin = new int[] { 0, 2, 5 };
 		hills.hillMax = new int[] { 2, 10, 15 };
-		hills.islandSizeMin = 0.02;
-		hills.islandSizeMax = 0.03;
 
 		IslandConfig extremeHills = new IslandConfig();
 		extremeHills.hillMin = new int[] { 0, 2, 5, 10 };
 		extremeHills.hillMax = new int[] { 2, 10, 20, 20 };
-		extremeHills.islandSizeMin = 0.04;
-		extremeHills.islandSizeMax = 0.06;
 		biomeMapping.put(Biome.EXTREME_HILLS, extremeHills);
 
 		IslandConfig grasslands = new IslandConfig();
-		grasslands.islandSizeMin = 0.005D;
-		grasslands.islandSizeMax = 0.0125D;
 		grasslands.hillMin = new int[] { 0, 2 };
 		grasslands.hillMax = new int[] { 2, 3 };
 		grasslands.hillNoise = 0.075D;
@@ -57,6 +48,7 @@ public class IslandConfig {
 
 		IslandConfig forestHills = hills.clone();
 		biomeMapping.put(Biome.FOREST_HILLS, forestHills);
+		biomeMapping.put(Biome.BIRCH_FOREST_HILLS, forestHills);
 
 		IslandConfig ocean = grasslands.clone();
 		biomeMapping.put(Biome.OCEAN, ocean);
@@ -70,13 +62,14 @@ public class IslandConfig {
 		biomeMapping.put(Biome.FROZEN_OCEAN, iceocean);
 
 		IslandConfig desert = grasslands.clone();
-		desert.coating = desert.topCoating = Material.SAND;
-		desert.lowerCoating = Material.SANDSTONE;
+		desert.coating = desert.topCoating = new Material[] { Material.SAND };
+		desert.lowerCoating = new Material[] { Material.SANDSTONE };
+		desert.smoothSize = 5;
 		biomeMapping.put(Biome.DESERT, desert);
 
 		IslandConfig desertHills = hills.clone();
-		desertHills.coating = desertHills.topCoating = Material.SAND;
-		desertHills.lowerCoating = Material.SANDSTONE;
+		desertHills.coating = desertHills.topCoating = new Material[] { Material.SAND };
+		desertHills.lowerCoating = new Material[] { Material.SANDSTONE };
 		biomeMapping.put(Biome.DESERT_HILLS, desertHills);
 
 		IslandConfig swampLands = new IslandConfig();
@@ -85,19 +78,40 @@ public class IslandConfig {
 		biomeMapping.put(Biome.SWAMPLAND, swampLands);
 
 		IslandConfig river = new IslandConfig();
-		river.bigLakes = true;
+		// river.topCoating = new Object[] { Material.WATER };
+		river.smoothSize = SMOOTH_TO_BIOME_EDGE;
+		river.grassNoise = 0;
 		biomeMapping.put(Biome.RIVER, river);
 
 		IslandConfig snowyRiver = river.clone();
 		snowyRiver.minSnowMin = new int[] { 20, 70 };
 		snowyRiver.minSnowMax = new int[] { 40, 90 };
 		biomeMapping.put(Biome.FROZEN_RIVER, snowyRiver);
+
+		IslandConfig mesa = desert.clone();
+		mesa.foundation = new Object[] {
+				new ItemStack(Material.STAINED_CLAY, 1,
+						DyeColor.BROWN.getDyeData()),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						DyeColor.YELLOW.getDyeData()),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						DyeColor.ORANGE.getDyeData()),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						DyeColor.BLACK.getDyeData()) };
+		mesa.lowerCoating = mesa.foundation;
+		biomeMapping.put(Biome.MESA, mesa);
+
+		IslandConfig beach = new IslandConfig();
+		beach.coating = beach.topCoating = new Object[] { Material.SAND };
+		beach.lowerCoating = new Object[] { Material.SANDSTONE };
 	}
 
 	public static IslandConfig forBiome(Biome biome) {
 		IslandConfig mapping = biomeMapping.get(biome);
 		return mapping != null ? mapping : defaultIslandConfig;
 	}
+
+	public int riverGorgeDepth = 2;
 
 	public int dirtMax = 7;
 	public int dirtMin = 4;
@@ -106,35 +120,31 @@ public class IslandConfig {
 
 	public int extSpikeMin = -4;
 	public int extSpikeMax = 4;
-	public int rootSpikeMin = -8;
-	public int rootSpikeMax = 8;
+	public int rootSpikeMin = 4;
+	public int rootSpikeMax = 16;
 	public int minStoneMinThickness = 5;
 	public int maxStoneMinThickness = 7;
 
 	// Island Size Settings
-	public int[] baseMin = { 5, 15, 40, 60 };
-	public int[] baseMax = { 35, 55, 80, 95 };
-	public double[] islandRarityMin = { 0D, .25D, .5D, .75D };
-	public double[] islandRarityMax = { 0.2D, 0.4D, .7D, .95D };
-
-	public double islandSizeMin = 0.001D;
-	public double islandSizeMax = 0.003D;
+	public int smoothSize = 0;
 
 	public double hillNoise = 0.1D;
 
 	public int[] minSnowMin = { 128 };
 	public int[] minSnowMax = { 128 };
 
-	public Material coating = Material.DIRT;
-	public Material topCoating = Material.GRASS;
-	public Material lowerCoating = Material.DIRT;
-	public Material foundation = Material.STONE;
+	public Object[] coating = { Material.DIRT };
+	public Object[] topCoating = { Material.GRASS };
+	public Object[] lowerCoating = { Material.DIRT };
+	public Object[] foundation = { Material.STONE };
 
 	public boolean bigLakes = false;
 	public int bigLakesSizeBase = 7;
 	public int bigLakesSizeRand = 5;
 	public int bigLakesDepth = 4;
 	public int bigLakeHeightClamp = 1;
+
+	public double grassNoise = 0.75;
 
 	@Override
 	public IslandConfig clone() {
@@ -146,5 +156,21 @@ public class IslandConfig {
 			}
 		}
 		return clone;
+	}
+
+	public static short blockSpecToData(Object o) {
+		if (o instanceof ItemStack) {
+			return (short) (((ItemStack) o).getDurability());
+		}
+		return 0;
+	}
+
+	public static short blockSpecToID(Object o) {
+		if (o instanceof Material) {
+			return (byte) ((Material) o).getId();
+		} else if (o instanceof ItemStack) {
+			return (short) (((ItemStack) o).getType().getId());
+		}
+		return 0;
 	}
 }
