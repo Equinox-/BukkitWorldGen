@@ -1,4 +1,4 @@
-package com.pi.bukkit.worldgen.floatingisland.gen;
+package com.pi.bukkit.worldgen.floatingisland.gen.decor;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;

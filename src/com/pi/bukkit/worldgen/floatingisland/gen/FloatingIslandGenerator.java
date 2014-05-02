@@ -18,6 +18,8 @@ import com.pi.bukkit.worldgen.DefferedDataPopulator;
 import com.pi.bukkit.worldgen.LayeredOctaveNoise;
 import com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
+import com.pi.bukkit.worldgen.floatingisland.gen.decor.BiomeDecoratorPopulator;
+import com.pi.bukkit.worldgen.floatingisland.gen.terrain.LakesGenerator;
 
 public class FloatingIslandGenerator extends ChunkGenerator {
 

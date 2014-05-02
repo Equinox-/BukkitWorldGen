@@ -1,4 +1,4 @@
-package com.pi.bukkit.worldgen.floatingisland.gen;
+package com.pi.bukkit.worldgen.floatingisland.gen.terrain;
 
 import java.util.ArrayList;
 import java.util.List;
