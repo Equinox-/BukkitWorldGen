@@ -129,13 +129,19 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				islandMap.setScale(b, 0.01D);
 			}
 		}
-
+		Biome lastBiome = biomes.getBiome(15, 15);
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
 				int noiseX = realX + x;
 				int noiseZ = realZ + z;
 				Biome biome = biomes.getBiome(x, z);
-				IslandConfig config = IslandConfig.forBiome(biome);
+				IslandConfig config = IslandConfig
+						.forBiome(biome == Biome.RIVER
+								|| biome == Biome.FROZEN_RIVER ? lastBiome
+								: biome);
+				if (biome != Biome.RIVER && biome != Biome.FROZEN_RIVER) {
+					lastBiome = biome;
+				}
 
 				noise.setScale(7, config.hillNoise); // hill
 
@@ -150,8 +156,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 					islandYScale /= threshTotal;
 				}
 
-				for (int y = (int) (islandYScale > 0.01D ? noise.noise(0,
-						noiseX, noiseZ) * 25 : 0); y < 128; y++) {
+				for (int y = 0; y < 128; y++) {
 					float thresh = .5f;
 					thresh += (float) Math.pow(
 							Math.abs(y - 64
@@ -193,8 +198,14 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 						stone += hillHeight;
 
 						int yI = iTop + dirt;
-						y = Math.max(y, yI + (stone / 3)
-								+ (islandYScale > 0.01D ? stone * 2 : 0));
+						y = Math.max(
+								y,
+								yI
+										+ (stone / 4)
+										+ (int) ((noise
+												.noise(1, noiseX, noiseZ) * .75 + 0.25)
+												* Math.sqrt(islandYScale / 0.01D) * stone));
+						// TODO This causes issues. Noisy terrain, etc.
 
 						setBlock(
 								chunkX,
