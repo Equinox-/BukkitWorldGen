@@ -1,5 +1,6 @@
 package com.pi.bukkit.worldgen.floatingisland.gen;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -8,15 +9,16 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
-import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.util.noise.NoiseGenerator;
 import org.bukkit.util.noise.SimplexNoiseGenerator;
 
 import com.pi.bukkit.DefferedDataPopulator;
+import com.pi.bukkit.worldgen.BiomeNoiseGenerator;
+import com.pi.bukkit.worldgen.LayeredOctaveNoise;
 import com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
-import com.pi.bukkit.worldgen.floatingisland.LayeredOctaveNoise;
 
 public class FloatingIslandGenerator extends ChunkGenerator {
 
@@ -26,15 +28,17 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 	@Override
 	public List<BlockPopulator> getDefaultPopulators(World w) {
-		return Arrays.asList(dPop, new LakesGenerator(), new RiverGenerator(),
-				new SnowPopulator(), new BiomeDecoratorPopulator());
+		return Arrays.asList((BlockPopulator) dPop, new LakesGenerator(),
+		/* new RiverGenerator(), new SnowPopulator(), */
+		new BiomeDecoratorPopulator());
 	}
 
 	public FloatingIslandGenerator(FloatingIslandPlugin plugin) {
 		this.plugin = plugin;
 	}
 
-	final void setBlockInternal(short[][] result, int x, int y, int z, short blkid) {
+	final void setBlockInternal(short[][] result, int x, int y, int z,
+			short blkid) {
 		if (y < 0 || (y >> 4) >= result.length) {
 			return;
 		}
@@ -60,26 +64,70 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
+	private static float[][][] generateBiomeLevels(World w, int chunkX,
+			int chunkZ, BiomeGrid biomes) {
+		float[][][] biomeLevels = new float[16][16][Biome.values().length];
+		int realX = chunkX << 4;
+		int realZ = chunkZ << 4;
+		for (int x = -16; x < 32; x++) {
+			for (int z = -16; z < 32; z++) {
+				Biome here = null;
+				if (x >= 0 && z >= 0 && x < 16 && z < 16) {
+					here = biomes.getBiome(x, z);
+				} else {
+					here = w.getBiome(realX + x, realZ + z);
+				}
+				for (int xO = -5; xO < 5; xO++) {
+					for (int zO = -5; zO < 5; zO++) {
+						int tX = x + xO;
+						int tZ = z + zO;
+						if (tX >= 0 && tZ >= 0 && tX < 16 && tZ < 16) {
+							biomeLevels[tX][tZ][here.ordinal()] += 1.0 / (1.0 + (xO
+									* xO + zO * zO)) / 10.89748;
+							// Divide by magic to normalize
+						}
+					}
+				}
+			}
+		}
+		return biomeLevels;
+	}
+
 	@Override
 	public short[][] generateExtBlockSections(World w, Random random,
 			int chunkX, int chunkZ, BiomeGrid biomes) {
 		short[][] result = new short[24][];
 
+		float[][][] biomeIntensity = generateBiomeLevels(w, chunkX, chunkZ,
+				biomes);
+
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
 
-		LayeredOctaveNoise noise = new LayeredOctaveNoise(
-				new SimplexNoiseGenerator(new Random(w.getSeed())), 11);
+		NoiseGenerator noiseRoot = new SimplexNoiseGenerator(new Random(
+				w.getSeed()));
+		LayeredOctaveNoise noise = new LayeredOctaveNoise(noiseRoot, 11);
 		noise.setScale(0, 0.001D); // Threshold
 		noise.setScale(1, 0.01D); // Island map
-		noise.setBlend(1, 1);
 		noise.setScale(2, 0.1D); // Dirt
 		noise.setScale(3, 2D); // ext spike
 		noise.setScale(4, 0.1D); // root spike
 		noise.setScale(5, 0.1D); // lower coating
 		noise.setScale(6, 0.0001D); // hill size
 		noise.setScale(8, 0.05D);
+
+		BiomeNoiseGenerator hillNoise = new BiomeNoiseGenerator(noiseRoot);
+		BiomeNoiseGenerator islandMap = new BiomeNoiseGenerator(noiseRoot);
+		for (Biome b : Biome.values()) {
+			IslandConfig cfg = IslandConfig.forBiome(b);
+			if (cfg != null) {
+				hillNoise.setScale(b, cfg.hillNoise);
+				islandMap.setScale(b, cfg.islandScale);
+			} else {
+				hillNoise.setScale(b, 0.02D);
+				islandMap.setScale(b, 0.01D);
+			}
+		}
 
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
@@ -90,71 +138,33 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 				noise.setScale(7, config.hillNoise); // hill
 
-				for (int y = 0; y < 128; y++) {
-					float thresh = .25f;
+				double islandYScale = 0;
+				{
+					double threshTotal = 0;
+					for (Biome b : Biome.values()) {
+						threshTotal += biomeIntensity[x][z][b.ordinal()];
+						islandYScale += biomeIntensity[x][z][b.ordinal()]
+								* IslandConfig.forBiome(b).islandScale.getY();
+					}
+					islandYScale /= threshTotal;
+				}
+
+				for (int y = (int) (islandYScale > 0.01D ? noise.noise(0, noiseX,
+						noiseZ) * 25 : 0); y < 128; y++) {
+					float thresh = .5f;
 					thresh += (float) Math.pow(
 							Math.abs(y - 64
 									- (noise.noise(0, noiseX, noiseZ) - .5)
 									* 32) / 64.0, 3) * .25f;
-					double maskHere = noise.noise(1, noiseX, y, noiseZ);
-					if (maskHere > thresh
-							&& noise.noise(1, noiseX, y - 1, noiseZ) < maskHere
-							&& noise.noise(1, noiseX, y + 1, noiseZ) < maskHere) {
-						int iTop = y;
 
-						// Terrain smoothing:
-						if (config.smoothSize > 0) {
-							int[] smoother = new int[] { iTop, iTop, iTop, iTop };
-							int[] smoothDistance = new int[] {
-									config.smoothSize, config.smoothSize,
-									config.smoothSize, config.smoothSize };
-							if (config.smoothSize == IslandConfig.SMOOTH_TO_BIOME_EDGE) {
-								for (int r = 0; r < 4; r++) {
-									for (int off = 1; off < IslandConfig.SMOOTH_TO_BIOME_EDGE_MAX_DIST; off++) {
-										int baseX = noiseX
-												+ (((r >> 1) & 1)
-														* (((r & 1) << 1) - 1) * smoothDistance[r]);
-										int baseZ = noiseZ
-												+ (((~r >> 1) & 1)
-														* (((r & 1) << 1) - 1) * smoothDistance[r]);
-										if (w.getBiome(baseX, baseZ) != biome) {
-											smoothDistance[r] = off;
-											break;
-										}
-									}
-								}
-							}
-							for (int yO = 0; yO < 25; yO++) {
-								for (int r = 0; r < 4; r++) {
-									if (smoother[r] == iTop) {
-										for (int q = -1; q <= 1; q += 2) {
-											int baseX = noiseX
-													+ (((r >> 1) & 1)
-															* (((r & 1) << 1) - 1) * smoothDistance[r]);
-											int baseZ = noiseZ
-													+ (((~r >> 1) & 1)
-															* (((r & 1) << 1) - 1) * smoothDistance[r]);
-											int baseY = iTop + (yO * q);
-											double mHere = noise.noise(1,
-													baseX, baseY, baseZ);
-											double mAbove = noise.noise(1,
-													baseX, baseY + 1, baseZ);
-											double mBelow = noise.noise(1,
-													baseX, baseY - 1, baseZ);
-											if (mHere > thresh
-													&& mHere > mAbove
-													&& mHere > mBelow) {
-												smoother[r] = baseY;
-											}
-										}
-									}
-								}
-							}
-							for (int i : smoother) {
-								iTop += i;
-							}
-							iTop /= 5;
-						}
+					double maskHere = islandMap.noise(biomeIntensity[x][z],
+							noiseX, y, noiseZ);
+					if (maskHere > thresh
+							&& islandMap.noise(biomeIntensity[x][z], noiseX,
+									y - 1, noiseZ) < maskHere
+							&& islandMap.noise(biomeIntensity[x][z], noiseX,
+									y + 1, noiseZ) < maskHere) {
+						int iTop = y;
 
 						int dirt = (int) Math.round(noise.noise(2, noiseX,
 								noiseZ) * config.grassNoise) + 3;
@@ -162,6 +172,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 							dirt -= Math.min(2, config.riverGorgeDepth);
 							iTop -= Math.max(0, config.riverGorgeDepth - 2);
 						}
+
 						int lower = (int) (noise.noise(5, noiseX, y, noiseZ) * 2) + 1;
 
 						int spikeHeight = (int) (noise.noise(4, noiseX, noiseZ) * (config.rootSpikeMax - config.rootSpikeMin))
@@ -171,7 +182,8 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 								+ config.extSpikeMin;
 
 						int hillSize = (int) (noise.noise(6, noiseX, noiseZ) * config.hillMax.length);
-						int hillHeight = (int) (noise.noise(7, noiseX, noiseZ) * (config.hillMax[hillSize] - config.hillMin[hillSize]))
+						int hillHeight = (int) (hillNoise.noise(
+								biomeIntensity[x][z], noiseX, noiseZ) * (config.hillMax[hillSize] - config.hillMin[hillSize]))
 								+ config.hillMin[hillSize];
 
 						int stone = 2 + spikeHeight + spikeNoise;
@@ -180,7 +192,8 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 						stone += hillHeight;
 
 						int yI = iTop + dirt;
-						y = Math.max(y, yI);
+						y = Math.max(y, yI + (stone / 3)
+								+ (islandYScale > 0.01D ? stone : 0));
 
 						setBlock(
 								chunkX,
@@ -214,25 +227,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				}
 			}
 		}
-		genStructures(w, chunkX << 4, chunkZ << 4, result);
 		return result;
-	}
-
-	public void genStructures(World world, int cX, int cZ, short[][] data) {
-		net.minecraft.server.World handle = ((CraftWorld) world).getHandle();
-		// WorldGenBase t = new CavesGenerator();
-		// WorldGenStronghold u = new WorldGenStronghold();
-		// WorldGenVillage v = new WorldGenVillage(0);
-		// WorldGenMineshaft w = new WorldGenMineshaft();
-		// WorldGenBase x = new WorldGenCanyon();
-
-		// t.a(null, handle, cX, cZ, data);
-		// x.a(null, handle, cX, cZ, data);
-		if (world.canGenerateStructures()) {
-			// w.a(null, handle, cX, cZ, data);
-			// v.a(null, handle, cX, cZ, data);
-			// u.a(null, handle, cX, cZ, data);
-		}
 	}
 
 	public FloatingIslandPlugin getPlugin() {

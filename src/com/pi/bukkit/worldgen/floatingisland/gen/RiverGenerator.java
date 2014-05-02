@@ -14,7 +14,7 @@ import org.bukkit.util.Vector;
 import org.bukkit.util.noise.SimplexNoiseGenerator;
 
 import com.pi.bukkit.ServerCrossover;
-import com.pi.bukkit.worldgen.floatingisland.LayeredOctaveNoise;
+import com.pi.bukkit.worldgen.LayeredOctaveNoise;
 
 public class RiverGenerator extends BlockPopulator {
 	private static class RiverClump {

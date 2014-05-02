@@ -8,6 +8,7 @@ import org.bukkit.DyeColor;
 import org.bukkit.Material;
 import org.bukkit.block.Biome;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 public class IslandConfig {
 	private final static IslandConfig defaultIslandConfig = new IslandConfig();
@@ -24,20 +25,22 @@ public class IslandConfig {
 		IslandConfig hills = new IslandConfig();
 		hills.hillMin = new int[] { 0, 2, 5 };
 		hills.hillMax = new int[] { 2, 10, 15 };
+		hills.islandScale = new Vector(0.01D, 0.0075D, 0.01D);
 
 		IslandConfig extremeHills = new IslandConfig();
 		extremeHills.hillMin = new int[] { 0, 2, 5, 10 };
 		extremeHills.hillMax = new int[] { 2, 10, 20, 20 };
+		extremeHills.islandScale = new Vector(0.02D, 0.005D, 0.02D);
 		biomeMapping.put(Biome.EXTREME_HILLS, extremeHills);
 
-		IslandConfig grasslands = new IslandConfig();
-		grasslands.hillMin = new int[] { 0, 2 };
-		grasslands.hillMax = new int[] { 2, 3 };
-		grasslands.hillNoise = 0.075D;
-		grasslands.smoothSize = 3;
-		biomeMapping.put(Biome.PLAINS, grasslands);
+		IslandConfig plains = new IslandConfig();
+		plains.hillMin = new int[] { 0, 2 };
+		plains.hillMax = new int[] { 2, 3 };
+		plains.hillNoise = 0.00075D;
+		plains.islandScale = new Vector(0.01D, 0.03D, 0.01D);
+		biomeMapping.put(Biome.PLAINS, plains);
 
-		IslandConfig icePlains = grasslands.clone();
+		IslandConfig icePlains = plains.clone();
 		icePlains.minSnowMin = new int[] { 20, 70 };
 		icePlains.minSnowMax = new int[] { 40, 90 };
 		biomeMapping.put(Biome.ICE_PLAINS, icePlains);
@@ -51,7 +54,7 @@ public class IslandConfig {
 		biomeMapping.put(Biome.FOREST_HILLS, forestHills);
 		biomeMapping.put(Biome.BIRCH_FOREST_HILLS, forestHills);
 
-		IslandConfig ocean = grasslands.clone();
+		IslandConfig ocean = plains.clone();
 		biomeMapping.put(Biome.OCEAN, ocean);
 		ocean.bigLakesSizeBase = 10;
 		ocean.bigLakesSizeRand = 6;
@@ -62,7 +65,7 @@ public class IslandConfig {
 		iceocean.minSnowMax = new int[] { 40, 90 };
 		biomeMapping.put(Biome.FROZEN_OCEAN, iceocean);
 
-		IslandConfig desert = grasslands.clone();
+		IslandConfig desert = plains.clone();
 		desert.coating = desert.topCoating = new Material[] { Material.SAND };
 		desert.lowerCoating = new Material[] { Material.SANDSTONE };
 		biomeMapping.put(Biome.DESERT, desert);
@@ -128,6 +131,11 @@ public class IslandConfig {
 
 	// Island Size Settings
 	public int smoothSize = 0;
+	/**
+	 * x and z control size.  HIGHER IS SMALLER
+	 * y controls how much the height changes.  LOWER IS STEEPER
+	 */
+	public Vector islandScale = new Vector(0.01D, 0.01D, 0.01D);
 
 	public double hillNoise = 0.02D;
 
