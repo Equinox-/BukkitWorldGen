@@ -148,8 +148,8 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 					islandYScale /= threshTotal;
 				}
 
-				for (int y = (int) (islandYScale > 0.01D ? noise.noise(0, noiseX,
-						noiseZ) * 25 : 0); y < 128; y++) {
+				for (int y = (int) (islandYScale > 0.01D ? noise.noise(0,
+						noiseX, noiseZ) * 25 : 0); y < 128; y++) {
 					float thresh = .5f;
 					thresh += (float) Math.pow(
 							Math.abs(y - 64
@@ -192,7 +192,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 						int yI = iTop + dirt;
 						y = Math.max(y, yI + (stone / 3)
-								+ (islandYScale > 0.01D ? stone : 0));
+								+ (islandYScale > 0.01D ? stone * 2 : 0));
 
 						setBlock(
 								chunkX,

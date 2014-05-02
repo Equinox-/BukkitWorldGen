@@ -19,7 +19,6 @@ import net.minecraft.server.WorldGenLiquids;
 import net.minecraft.server.WorldGenMinable;
 import net.minecraft.server.WorldGenPumpkin;
 import net.minecraft.server.WorldGenReed;
-import net.minecraft.server.WorldGenSand;
 import net.minecraft.server.WorldGenTreeAbstract;
 import net.minecraft.server.WorldGenWaterLily;
 import net.minecraft.server.WorldGenerator;
@@ -32,8 +31,8 @@ public class BiomeDecoratorPort {
 	protected int c;
 	protected int d;
 	protected WorldGenerator e = new WorldGenClay(4);
-	protected WorldGenerator f = new WorldGenSand(Blocks.SAND, 7);
-	protected WorldGenerator g = new WorldGenSand(Blocks.GRAVEL, 6);
+	protected WorldGenerator f = new WorldGenEasySand(Blocks.SAND, 7);
+	protected WorldGenerator g = new WorldGenEasySand(Blocks.GRAVEL, 6);
 	protected WorldGenerator h = new WorldGenMinable(Blocks.DIRT, 32);
 	protected WorldGenerator i = new WorldGenMinable(Blocks.GRAVEL, 32);
 	protected WorldGenerator j = new WorldGenMinable(Blocks.COAL_ORE, 16);
