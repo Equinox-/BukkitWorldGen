@@ -20,10 +20,10 @@ public class ServerCrossover {
 	/*
 	 * IsLiquid Water Lava
 	 */
-
+	
 	public static boolean isTop(Block block) {
-		return block.getRelative(0, 1, 0).getType() == Material.AIR
-				&& block.getRelative(0, 3, 0).getType() == Material.AIR
+		return block.getRelative(0, 1, 0).getType().isTransparent()
+				&& block.getRelative(0, 3, 0).getType().isTransparent()
 				&& (block.getType().isSolid() && !block.getType().isBurnable() && block
 						.getType().isOccluding());
 	}
@@ -31,6 +31,6 @@ public class ServerCrossover {
 	public static boolean isTop(int id) {
 		@SuppressWarnings("deprecation")
 		Material type = Material.getMaterial(id);
-		return (type.isSolid() && !type.isBurnable() && type.isOccluding());
+		return (type.isSolid() && !type.isBurnable() && !type.isTransparent());
 	}
 }

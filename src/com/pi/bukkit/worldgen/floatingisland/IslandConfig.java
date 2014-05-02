@@ -112,7 +112,7 @@ public class IslandConfig {
 		return mapping != null ? mapping : defaultIslandConfig;
 	}
 
-	public int riverGorgeDepth = 2;
+	public int riverGorgeDepth = 3;
 
 	public int dirtMax = 7;
 	public int dirtMin = 4;
@@ -129,7 +129,7 @@ public class IslandConfig {
 	// Island Size Settings
 	public int smoothSize = 0;
 
-	public double hillNoise = 0.1D;
+	public double hillNoise = 0.02D;
 
 	public int[] minSnowMin = { 128 };
 	public int[] minSnowMax = { 128 };

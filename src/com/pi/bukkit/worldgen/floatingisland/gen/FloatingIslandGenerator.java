@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -33,7 +34,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		this.plugin = plugin;
 	}
 
-	void setBlockInternal(short[][] result, int x, int y, int z, short blkid) {
+	final void setBlockInternal(short[][] result, int x, int y, int z, short blkid) {
 		if (y < 0 || (y >> 4) >= result.length) {
 			return;
 		}
@@ -43,14 +44,14 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		result[y >> 4][((y & 0xF) << 8) | (z << 4) | x] = blkid;
 	}
 
-	short getBlockInternal(short[][] result, int x, int y, int z) {
+	final short getBlockInternal(short[][] result, int x, int y, int z) {
 		if (result[y >> 4] == null) {
 			return (short) 0;
 		}
 		return result[y >> 4][((y & 0xF) << 8) | (z << 4) | x];
 	}
 
-	void setBlock(int chunkX, int chunkZ, short[][] result, int x, int y,
+	final void setBlock(int chunkX, int chunkZ, short[][] result, int x, int y,
 			int z, Object block) {
 		setBlockInternal(result, x, y, z, IslandConfig.blockSpecToID(block));
 		short data = IslandConfig.blockSpecToData(block);
@@ -63,7 +64,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 	@Override
 	public short[][] generateExtBlockSections(World w, Random random,
 			int chunkX, int chunkZ, BiomeGrid biomes) {
-		short[][] result = new short[16][];
+		short[][] result = new short[24][];
 
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
@@ -78,6 +79,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		noise.setScale(4, 0.1D); // root spike
 		noise.setScale(5, 0.1D); // lower coating
 		noise.setScale(6, 0.0001D); // hill size
+		noise.setScale(8, 0.05D);
 
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
@@ -89,7 +91,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				noise.setScale(7, config.hillNoise); // hill
 
 				for (int y = 0; y < 128; y++) {
-					float thresh = .5f;
+					float thresh = .25f;
 					thresh += (float) Math.pow(
 							Math.abs(y - 64
 									- (noise.noise(0, noiseX, noiseZ) - .5)
@@ -178,9 +180,6 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 						stone += hillHeight;
 
 						int yI = iTop + dirt;
-						if (yI > 128) {
-							yI = 128;
-						}
 						y = Math.max(y, yI);
 
 						setBlock(
@@ -202,9 +201,14 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 											% config.lowerCoating.length]);
 						}
 						for (; yI >= iTop - stone && yI >= 0; yI--) {
-							setBlock(chunkX, chunkZ, result, x, yI, z,
-									config.foundation[yI
-											% config.foundation.length]);
+							Object type = config.foundation[yI
+									% config.foundation.length];
+							double glowNoise = noise.noise(8, x, yI, z);
+							if (glowNoise > 0.45 && glowNoise < 0.55) {
+								type = Material.GLOWSTONE;
+							}
+							setBlock(chunkX, chunkZ, result, x, yI, z, type);
+
 						}
 					}
 				}
