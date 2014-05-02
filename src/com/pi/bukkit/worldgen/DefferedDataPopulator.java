@@ -1,4 +1,4 @@
-package com.pi.bukkit;
+package com.pi.bukkit.worldgen;
 
 import java.awt.Point;
 import java.util.ArrayList;
@@ -35,7 +35,8 @@ public class DefferedDataPopulator extends BlockPopulator {
 				.getZ()));
 		if (lst != null) {
 			List<DefferedBlock> res = new ArrayList<DefferedBlock>();
-			lst.addAll(res);
+			res.addAll(lst);
+			lst.clear();
 			for (DefferedBlock b : res) {
 				Block bb = source.getBlock(b.x, b.y, b.z);
 				if (bb != null) {

@@ -350,6 +350,9 @@ public class BiomeDecoratorPort {
 							z & 15) == 0
 					&& a.getChunkAtWorldCoords(x, z).getData(x & 15, y + 3,
 							z & 15) == 0) {
+				if (y <= 0) {
+					break;
+				}
 				blocks.add(y);
 				y -= 10;
 			}

@@ -10,6 +10,8 @@ import org.bukkit.block.Biome;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import com.pi.bukkit.MesaDataValues;
+
 public class IslandConfig {
 	private final static IslandConfig defaultIslandConfig = new IslandConfig();
 	private static Map<Biome, IslandConfig> biomeMapping = new HashMap<Biome, IslandConfig>();
@@ -93,17 +95,45 @@ public class IslandConfig {
 		biomeMapping.put(Biome.FROZEN_RIVER, snowyRiver);
 
 		IslandConfig mesa = desert.clone();
+		mesa.topCoating = new Object[] { new ItemStack(Material.SAND, 1,
+				MesaDataValues.RED_SAND) };// Red sand
 		mesa.foundation = new Object[] {
 				new ItemStack(Material.STAINED_CLAY, 1,
-						DyeColor.BROWN.getDyeData()),
+						MesaDataValues.BROWN_CLAY),
 				new ItemStack(Material.STAINED_CLAY, 1,
-						DyeColor.YELLOW.getDyeData()),
+						MesaDataValues.BROWN_CLAY),
 				new ItemStack(Material.STAINED_CLAY, 1,
-						DyeColor.ORANGE.getDyeData()),
+						MesaDataValues.ORANGE_CLAY),
 				new ItemStack(Material.STAINED_CLAY, 1,
-						DyeColor.BLACK.getDyeData()) };
-		mesa.lowerCoating = mesa.foundation;
+						MesaDataValues.BROWN_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.WHITE_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.LIGHT_GRAY_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.BROWN_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.GRAY_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.BLACK_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.GRAY_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1, MesaDataValues.RED_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.BROWN_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.BROWN_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.BROWN_CLAY),
+				new ItemStack(Material.STAINED_CLAY, 1,
+						MesaDataValues.YELLOW_CLAY) };
+		mesa.coating = mesa.lowerCoating = mesa.foundation;
 		biomeMapping.put(Biome.MESA, mesa);
+		biomeMapping.put(Biome.MESA_BRYCE, mesa);
+		biomeMapping.put(Biome.MESA_PLATEAU, mesa);
+		biomeMapping.put(Biome.MESA_PLATEAU_FOREST, mesa);
+		biomeMapping.put(Biome.MESA_PLATEAU_FOREST_MOUNTAINS, mesa);
+		biomeMapping.put(Biome.MESA_PLATEAU_MOUNTAINS, mesa);
 
 		IslandConfig beach = new IslandConfig();
 		beach.coating = beach.topCoating = new Object[] { Material.SAND };
@@ -132,8 +162,8 @@ public class IslandConfig {
 	// Island Size Settings
 	public int smoothSize = 0;
 	/**
-	 * x and z control size.  HIGHER IS SMALLER
-	 * y controls how much the height changes.  LOWER IS STEEPER
+	 * x and z control size. HIGHER IS SMALLER y controls how much the height
+	 * changes. LOWER IS STEEPER
 	 */
 	public Vector islandScale = new Vector(0.01D, 0.01D, 0.01D);
 
