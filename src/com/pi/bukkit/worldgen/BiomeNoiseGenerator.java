@@ -34,4 +34,10 @@ public class BiomeNoiseGenerator {
 		}
 		return tWeight == 0 ? 0.0 : total / tWeight;
 	}
+
+	public Vector gradient(float[] biome, double x, double y, double z) {
+		double here = noise(biome, x, y, z);
+		return new Vector(noise(biome, x + 1, y, z) - here, noise(biome, x,
+				y + 1, z) - here, noise(biome, x, y, z + 1) - here);
+	}
 }

@@ -1,5 +1,6 @@
 package com.pi.bukkit.worldgen.floatingisland;
 
+import java.io.File;
 import java.util.logging.Logger;
 
 import org.bukkit.event.EventHandler;
@@ -15,6 +16,29 @@ import com.pi.bukkit.worldgen.floatingisland.gen.FloatingIslandGenerator;
 
 public class FloatingIslandPlugin extends JavaPlugin implements Listener {
 	private Logger log = Logger.getLogger("Minecraft");
+
+	@Override
+	public void onLoad() {
+		logMessage("Load");
+		File wrld = new File("world");
+		delFolder(wrld);
+	}
+
+	private void delFolder(File wrld) {
+		File[] files = wrld.listFiles();
+		if (files != null) {
+			for (File f : files) {
+				if (f != null) {
+					if (f.isDirectory()) {
+						delFolder(f);
+					} else {
+						f.delete();
+					}
+				}
+			}
+		}
+		wrld.delete();
+	}
 
 	@Override
 	public void onEnable() {
@@ -39,8 +63,7 @@ public class FloatingIslandPlugin extends JavaPlugin implements Listener {
 
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onPlayerRespawn(PlayerRespawnEvent e) {
-		e.getPlayer().sendMessage(
-				"Re-join the server to fly again");
+		e.getPlayer().sendMessage("Re-join the server to fly again");
 	}
 
 	@EventHandler(priority = EventPriority.HIGH)

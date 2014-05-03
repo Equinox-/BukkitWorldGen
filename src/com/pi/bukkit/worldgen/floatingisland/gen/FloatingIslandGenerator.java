@@ -8,18 +8,21 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
+import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.util.Vector;
 import org.bukkit.util.noise.NoiseGenerator;
 import org.bukkit.util.noise.SimplexNoiseGenerator;
 
 import com.pi.bukkit.worldgen.BiomeNoiseGenerator;
 import com.pi.bukkit.worldgen.DefferedDataPopulator;
+import com.pi.bukkit.worldgen.DefferedDataPopulator.SetBlockData;
 import com.pi.bukkit.worldgen.LayeredOctaveNoise;
 import com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
-import com.pi.bukkit.worldgen.floatingisland.gen.decor.BiomeDecoratorPopulator;
-import com.pi.bukkit.worldgen.floatingisland.gen.terrain.LakesGenerator;
 
 public class FloatingIslandGenerator extends ChunkGenerator {
 
@@ -29,9 +32,12 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 	@Override
 	public List<BlockPopulator> getDefaultPopulators(World w) {
-		return Arrays.asList((BlockPopulator) dPop, new LakesGenerator(),
-		/* new RiverGenerator(), new SnowPopulator(), */
-		new BiomeDecoratorPopulator());
+		return Arrays.asList((BlockPopulator) dPop/*
+												 * , new LakesGenerator(), new
+												 * RiverGenerator(), new
+												 * SnowPopulator(), new
+												 * BiomeDecoratorPopulator()
+												 */);
 	}
 
 	public FloatingIslandGenerator(FloatingIslandPlugin plugin) {
@@ -65,9 +71,14 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		}
 	}
 
+	private static int BIOME_BLEND_RADIUS = 16;
+	private static int BIOME_BLEND_EXTENT = 5;
+	private static int NEIGHBOR_DISTANCE = 1;
+
 	private static float[][][] generateBiomeLevels(World w, int chunkX,
 			int chunkZ, BiomeGrid biomes) {
-		float[][][] biomeLevels = new float[16][16][Biome.values().length];
+		float[][][] biomeLevels = new float[16 + (BIOME_BLEND_EXTENT * 2)][16 + (BIOME_BLEND_EXTENT * 2)][Biome
+				.values().length];
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
 		for (int x = -16; x < 32; x++) {
@@ -78,12 +89,16 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				} else {
 					here = w.getBiome(realX + x, realZ + z);
 				}
-				for (int xO = -5; xO < 5; xO++) {
-					for (int zO = -5; zO < 5; zO++) {
+				for (int xO = -BIOME_BLEND_RADIUS; xO <= BIOME_BLEND_RADIUS; xO++) {
+					for (int zO = -BIOME_BLEND_RADIUS; zO <= BIOME_BLEND_RADIUS; zO++) {
 						int tX = x + xO;
 						int tZ = z + zO;
-						if (tX >= 0 && tZ >= 0 && tX < 16 && tZ < 16) {
-							biomeLevels[tX][tZ][here.ordinal()] += 1.0 / (1.0 + (xO
+						if (tX >= -BIOME_BLEND_EXTENT
+								&& tZ >= -BIOME_BLEND_EXTENT
+								&& tX < 16 + BIOME_BLEND_EXTENT
+								&& tZ < 16 + BIOME_BLEND_EXTENT) {
+							biomeLevels[tX + BIOME_BLEND_EXTENT][tZ
+									+ BIOME_BLEND_EXTENT][here.ordinal()] += 1.0 / (1.0 + (xO
 									* xO + zO * zO)) / 10.89748;
 							// Divide by magic to normalize
 						}
@@ -111,7 +126,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		noise.setScale(0, 0.001D); // Threshold
 		noise.setScale(1, 0.01D); // Island map
 		noise.setScale(2, 0.1D); // Dirt
-		noise.setScale(3, 2D); // ext spike
+		noise.setScale(3, 0.5D); // ext spike
 		noise.setScale(4, 0.1D); // root spike
 		noise.setScale(5, 0.1D); // lower coating
 		noise.setScale(6, 0.0001D); // hill size
@@ -129,19 +144,14 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				islandMap.setScale(b, 0.01D);
 			}
 		}
-		Biome lastBiome = biomes.getBiome(15, 15);
+
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
 				int noiseX = realX + x;
 				int noiseZ = realZ + z;
 				Biome biome = biomes.getBiome(x, z);
-				IslandConfig config = IslandConfig
-						.forBiome(biome == Biome.RIVER
-								|| biome == Biome.FROZEN_RIVER ? lastBiome
-								: biome);
-				if (biome != Biome.RIVER && biome != Biome.FROZEN_RIVER) {
-					lastBiome = biome;
-				}
+
+				IslandConfig config = IslandConfig.forBiome(biome);
 
 				noise.setScale(7, config.hillNoise); // hill
 
@@ -157,75 +167,178 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				}
 
 				for (int y = 0; y < 128; y++) {
-					float thresh = .5f;
+					float thresh = 0f;
 					thresh += (float) Math.pow(
 							Math.abs(y - 64
 									- (noise.noise(0, noiseX, noiseZ) - .5)
 									* 32) / 64.0, 3) * .25f;
 
-					double maskHere = islandMap.noise(biomeIntensity[x][z],
+					final double maskHere = islandMap.noise(biomeIntensity[x
+							+ BIOME_BLEND_EXTENT][z + BIOME_BLEND_EXTENT],
 							noiseX, y, noiseZ);
-					if (maskHere > thresh
-							&& islandMap.noise(biomeIntensity[x][z], noiseX,
-									y - 1, noiseZ) < maskHere
-							&& islandMap.noise(biomeIntensity[x][z], noiseX,
-									y + 1, noiseZ) < maskHere) {
-						int iTop = y;
+					final double maskBelow = islandMap.noise(biomeIntensity[x
+							+ BIOME_BLEND_EXTENT][z + BIOME_BLEND_EXTENT],
+							noiseX, y - 1, noiseZ);
+					final double maskAbove = islandMap.noise(biomeIntensity[x
+							+ BIOME_BLEND_EXTENT][z + BIOME_BLEND_EXTENT],
+							noiseX, y + 1, noiseZ);
+					final double maskDiff = ((Math.abs(maskHere - maskBelow) + Math
+							.abs(maskHere - maskAbove))) / 2.0;
+
+					if (maskHere > thresh && maskBelow < maskHere
+							&& maskAbove < maskHere && maskDiff > 1E-5) {
+						int islandTop = y;
+
+						// Neighbors calc TODO Expensive. Cheaper plz
+						int unknownNeighbors = 0;
+						int[][] neighbors = new int[3][3];
+						neighbors[1][1] = y;
+						for (int nX = -1; nX <= 1; nX++) {
+							next: for (int nZ = -1; nZ <= 1; nZ += (nX == 0 ? 2
+									: 1)) {
+								neighbors[nX + 1][nZ + 1] = -1;
+								for (int nY = 0; nY < 15; nY++) {
+									for (int dY = -1; dY <= 1; dY += 2) {
+										double mHere = islandMap
+												.noise(biomeIntensity[x
+														+ (nX * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT][z
+														+ (nZ * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT],
+														noiseX
+																+ (nX * NEIGHBOR_DISTANCE),
+														y + (nY * dY),
+														noiseZ
+																+ (nZ * NEIGHBOR_DISTANCE));
+										double mBelow = islandMap
+												.noise(biomeIntensity[x
+														+ (nX * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT][z
+														+ (nZ * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT],
+														noiseX
+																+ (nX * NEIGHBOR_DISTANCE),
+														y + (nY * dY) - 1,
+														noiseZ
+																+ (nZ * NEIGHBOR_DISTANCE));
+										double mAbove = islandMap
+												.noise(biomeIntensity[x
+														+ (nX * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT][z
+														+ (nZ * NEIGHBOR_DISTANCE)
+														+ BIOME_BLEND_EXTENT],
+														noiseX
+																+ (nX * NEIGHBOR_DISTANCE),
+														y + (nY * dY) + 1,
+														noiseZ
+																+ (nZ * NEIGHBOR_DISTANCE));
+										double mDiff = ((Math.abs(mHere
+												- mBelow) + Math.abs(mHere
+												- mAbove))) / 2.0;
+										if (mHere > thresh && mBelow < mHere
+												&& mAbove < mHere
+												&& mDiff > 1E-5) {
+											neighbors[nX + 1][nZ + 1] = y
+													+ (nY * dY);
+											islandTop += (y + (nY * dY)) * 0.5;
+											continue next;
+										}
+									}
+								}
+								unknownNeighbors++;
+							}
+						}
+						if (unknownNeighbors >= 2) { // This stops the borders from spiking
+							continue;
+						}
+
+						islandTop /= (1 + (8 - unknownNeighbors));
 
 						int dirt = (int) Math.round(noise.noise(2, noiseX,
 								noiseZ) * config.grassNoise) + 3;
-						if (biome == Biome.RIVER || biome == Biome.FROZEN_RIVER) {
-							dirt -= Math.min(2, config.riverGorgeDepth);
-							iTop -= Math.max(0, config.riverGorgeDepth - 2);
-						}
 
-						int lower = (int) (noise.noise(5, noiseX, y, noiseZ) * 2) + 1;
+						int lower = (int) (noise.noise(5, noiseX, islandTop,
+								noiseZ) * 2) + 1;
 
-						int spikeHeight = (int) (noise.noise(4, noiseX, noiseZ) * (config.rootSpikeMax - config.rootSpikeMin))
+						int spikeHeight = (int) (noise.noise(4, noiseX,
+								islandTop, noiseZ) * (config.rootSpikeMax - config.rootSpikeMin))
 								+ config.rootSpikeMin;
 
-						int spikeNoise = (int) (noise.noise(3, noiseX, noiseZ) * (config.extSpikeMax - config.extSpikeMin))
+						int spikeNoise = (int) (Math.pow(
+								noise.noise(3, noiseX, islandTop, noiseZ), 2) * (config.extSpikeMax - config.extSpikeMin))
 								+ config.extSpikeMin;
 
-						int hillSize = (int) (noise.noise(6, noiseX, noiseZ) * config.hillMax.length);
+						int hillSize = (int) (noise.noise(6, noiseX, islandTop,
+								noiseZ) * config.hillMax.length);
 						int hillHeight = (int) (hillNoise.noise(
-								biomeIntensity[x][z], noiseX, noiseZ) * (config.hillMax[hillSize] - config.hillMin[hillSize]))
+								biomeIntensity[x + BIOME_BLEND_EXTENT][z
+										+ BIOME_BLEND_EXTENT], noiseX,
+								islandTop, noiseZ) * (config.hillMax[hillSize] - config.hillMin[hillSize]))
 								+ config.hillMin[hillSize];
 
 						int stone = 2 + spikeHeight + spikeNoise;
 
-						iTop += hillHeight;
+						islandTop += hillHeight;
 						stone += hillHeight;
 
-						int yI = iTop + dirt;
+						int yI = islandTop + dirt;
 						y = Math.max(
 								y,
 								yI
-										+ (stone / 4)
-										+ (int) ((noise
-												.noise(1, noiseX, noiseZ) * .75 + 0.25)
-												* Math.sqrt(islandYScale / 0.01D) * stone));
+										+ ((2 + config.rootSpikeMax + config.extSpikeMax) / 4)
+										+ (int) ((noise.noise(1, noiseX,
+												islandTop, noiseZ) * .6 + 0.4)
+												* Math.sqrt(islandYScale / 0.0075D) * (2 + config.rootSpikeMax))); //
 						// TODO This causes issues. Noisy terrain, etc.
 
-						setBlock(
-								chunkX,
-								chunkZ,
-								result,
-								x,
-								yI,
-								z,
-								config.topCoating[yI % config.topCoating.length]);
+						if (biome == Biome.RIVER) {
+							// Check biome neighbors
+							int count = 0;
+							Biome replace = null;
+							for (int xO = -1; xO <= 1; xO++) {
+								for (int zO = xO == 0 ? -1 : 0; zO <= 1; zO += 2) {
+									int resX = x + xO, resZ = z + zO;
+									if (resX >= 0 && resZ >= 0 && resX < 16
+											&& resZ < 16) {
+										Biome test = biomes
+												.getBiome(resX, resZ);
+										if (test == biome) {
+											count++;
+										} else {
+											replace = test;
+										}
+									}
+								}
+							}
+
+							if ((count <= 1 || unknownNeighbors > 1)
+									&& replace != null) {
+								biomes.setBiome(x, z, replace);
+								biome = replace;
+								config = IslandConfig.forBiome(replace);
+							}
+						}
+						if (biome == Biome.RIVER) {
+							yI = (int) (5 * Math.floor(yI / 5.0)); // Ugly as fuck
+							setBlock(chunkX, chunkZ, result, x, yI, z,
+									Material.GLOWSTONE);
+						} else {
+							setBlock(chunkX, chunkZ, result, x, yI, z,
+									config.topCoating[yI
+											% config.topCoating.length]);
+						}
+
 						yI--;
-						for (; yI >= iTop && yI >= 0; yI--) {
+						for (; yI >= islandTop && yI >= 0; yI--) {
 							setBlock(chunkX, chunkZ, result, x, yI, z,
 									config.coating[yI % config.coating.length]);
 						}
-						for (; yI >= iTop - lower && yI >= 0; yI--) {
+						for (; yI >= islandTop - lower && yI >= 0; yI--) {
 							setBlock(chunkX, chunkZ, result, x, yI, z,
 									config.lowerCoating[yI
 											% config.lowerCoating.length]);
 						}
-						for (; yI >= iTop - stone && yI >= 0; yI--) {
+						for (; yI >= islandTop - stone && yI >= 0; yI--) {
 							Object type = config.foundation[yI
 									% config.foundation.length];
 							double glowNoise = noise.noise(8, x, yI, z);
@@ -233,7 +346,6 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 								type = Material.GLOWSTONE;
 							}
 							setBlock(chunkX, chunkZ, result, x, yI, z, type);
-
 						}
 					}
 				}

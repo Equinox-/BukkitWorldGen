@@ -22,8 +22,8 @@ public class LayeredOctaveNoise {
 		this.blendSize = new int[layers];
 
 		setScale(new Vector(1, 1, 1));
-		setFrequency(1D);
-		setAmplitude(1D);
+		setFrequency(.5D);
+		setAmplitude(.5D);
 		setBlend(0);
 	}
 
@@ -68,7 +68,7 @@ public class LayeredOctaveNoise {
 		for (double xO = -blendSize[layer]; xO <= blendSize[layer]; xO++) {
 			for (double yO = -blendSize[layer]; yO <= blendSize[layer]; yO++) {
 				ttl += cleanNoise(gen.noise((x + xO) * scale[layer].getX(),
-						(y + yO) * scale[layer].getY(), layer, 1, freq[layer],
+						(y + yO) * scale[layer].getY(), layer, 2, freq[layer],
 						amp[layer], true));
 			}
 		}
