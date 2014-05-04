@@ -152,6 +152,17 @@ public class IslandConfig {
 	public int[] hillMin = { 0, 2 };
 	public int[] hillMax = { 2, 5 };
 
+	private int absHillMax = -1;
+
+	public int getAbsoluteHillMax() {
+		if (absHillMax == -1) {
+			for (int j : hillMax) {
+				absHillMax = Math.max(absHillMax, j);
+			}
+		}
+		return absHillMax;
+	}
+
 	public int extSpikeMin = -4;
 	public int extSpikeMax = 4;
 	public int rootSpikeMin = 4;
