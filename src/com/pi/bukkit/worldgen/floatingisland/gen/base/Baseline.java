@@ -3,7 +3,6 @@ package com.pi.bukkit.worldgen.floatingisland.gen.base;
 import org.bukkit.World;
 
 import com.pi.bukkit.worldgen.floatingisland.gen.BiomeIntensityGrid;
-import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 
 public abstract class Baseline {
 	protected final int chunkX, chunkZ;
@@ -11,6 +10,8 @@ public abstract class Baseline {
 	protected final BiomeIntensityGrid biomes;
 	protected final int heightMapOversample;
 	protected int[][][] heightMap;
+
+	protected int[][][] metaData;
 
 	public Baseline(World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing, int heightMapOversample) {
@@ -25,12 +26,21 @@ public abstract class Baseline {
 		return heightMap[x + heightMapOversample][z + heightMapOversample];
 	}
 
+	public final int[] getMeta(int x, int z) {
+		return metaData[x + heightMapOversample][z + heightMapOversample];
+	}
+
 	protected final void setHeights(int x, int z, int... heights) {
 		heightMap[x + heightMapOversample][z + heightMapOversample] = heights;
 	}
 
+	protected final void setMetadata(int x, int z, int... meta) {
+		metaData[x + heightMapOversample][z + heightMapOversample] = meta;
+	}
+
 	protected final void allocHeightMap() {
 		heightMap = new int[16 + (2 * heightMapOversample)][16 + (2 * heightMapOversample)][];
+		metaData = new int[16 + (2 * heightMapOversample)][16 + (2 * heightMapOversample)][];
 	}
 
 	public int getHeightNear(int x, int y, int z) {
@@ -45,5 +55,20 @@ public abstract class Baseline {
 			}
 		}
 		return near;
+	}
+
+	public int getHeightBelow(int x, int y, int z) {
+		int[] res = getHeights(x, z);
+		for (int q = res.length - 1; q >= 0; q--) {
+			if (res[q] <= y) {
+				return res[q];
+			}
+		}
+		return -1;
+	}
+
+	public boolean isInBounds(int x, int z) {
+		return x >= -heightMapOversample && z >= -heightMapOversample
+				&& x < 16 + heightMapOversample && z < 16 + heightMapOversample;
 	}
 }

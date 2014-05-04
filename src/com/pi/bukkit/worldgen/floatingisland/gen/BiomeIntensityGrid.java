@@ -31,7 +31,7 @@ public class BiomeIntensityGrid implements BiomeGrid {
 						&& tZ < 16 + GenerationTuning.BIOME_OVERSAMPLE) {
 					intensity[tX + GenerationTuning.BIOME_OVERSAMPLE][tZ
 							+ GenerationTuning.BIOME_OVERSAMPLE][here.ordinal()] += mult
-							/ (1.0 + (xO * xO + zO * zO)) / 10.89748;
+							/ Math.sqrt(1.0 + (xO * xO + zO * zO)) / 10.89748;
 				}
 			}
 		}
@@ -97,6 +97,11 @@ public class BiomeIntensityGrid implements BiomeGrid {
 			biomes[x + GenerationTuning.BIOME_OVERSAMPLE][z
 					+ GenerationTuning.BIOME_OVERSAMPLE] = bio;
 			applyBiome(x, z, bio, 1f);
+			if (x >= 0 && z >= 0 && x < 16 && z < 16) {
+				backing.setBiome(x, z, bio);
+			} else {
+				world.setBiome((chunkX << 4) + x, (chunkZ << 4) + z, bio);
+			}
 		}
 	}
 }

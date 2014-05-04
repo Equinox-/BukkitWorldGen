@@ -17,8 +17,8 @@ public class EdgeCleaner extends BaselineTransform {
 		allocHeightMap();
 
 		// Threshold edges to max 2 unknown
-		for (int x = -heightMapOversample + 1; x < 16 + heightMapOversample - 1; x++) {
-			for (int z = -heightMapOversample + 1; z < 16 + heightMapOversample - 1; z++) {
+		for (int x = -heightMapOversample; x < 16 + heightMapOversample; x++) {
+			for (int z = -heightMapOversample; z < 16 + heightMapOversample; z++) {
 				int[] originalHeights = parent.getHeights(x, z);
 				int[] resY = new int[originalHeights.length];
 				int resH = 0;

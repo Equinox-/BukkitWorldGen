@@ -5,7 +5,8 @@ import java.util.Random;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.util.noise.NoiseGenerator;
-import org.bukkit.util.noise.SimplexNoiseGenerator;
+import org.bukkit.util.noise.OctaveGenerator;
+import org.bukkit.util.noise.SimplexOctaveGenerator;
 
 import com.pi.bukkit.worldgen.BiomeNoiseGenerator;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
@@ -16,10 +17,18 @@ public class BaselineLayer extends Baseline {
 	private final BiomeNoiseGenerator islandMap;
 	private final NoiseGenerator noiseRoot;
 
-	public BaselineLayer(World w, int chunkX, int chunkZ,
+	public BaselineLayer(final World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing) {
 		super(w, chunkX, chunkZ, backing, GenerationTuning.HEIGHT_OVERSAMPLE);
-		this.noiseRoot = new SimplexNoiseGenerator(new Random(w.getSeed()));
+		this.noiseRoot = new NoiseGenerator() {
+			private final OctaveGenerator gen = new SimplexOctaveGenerator(
+					new Random(w.getSeed()), 3);
+
+			@Override
+			public double noise(double x, double y, double z) {
+				return gen.noise(x, y, z, 0.5, 0.5);
+			}
+		};
 		this.islandMap = new BiomeNoiseGenerator(noiseRoot);
 		for (Biome b : Biome.values()) {
 			IslandConfig cfg = IslandConfig.forBiome(b);
@@ -59,7 +68,7 @@ public class BaselineLayer extends Baseline {
 				}
 
 				for (int y = 0; y < 128; y++) {
-					float thresh = 0f;
+					float thresh = .5f;
 					final double maskHere = islandMap.noise(
 							biomes.getBiomeIntensity(x, z), noiseX, y, noiseZ);
 					final double maskBelow = islandMap.noise(

@@ -6,6 +6,7 @@ import net.minecraft.server.BiomeBase;
 
 import org.bukkit.Chunk;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.CraftChunk;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.block.CraftBlock;
 import org.bukkit.generator.BlockPopulator;

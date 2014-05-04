@@ -1,7 +1,5 @@
 package com.pi.bukkit.worldgen.floatingisland.gen;
 
-import java.awt.Point;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -23,6 +21,7 @@ import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.Baseline;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.BaselineLayer;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.EdgeCleaner;
+import com.pi.bukkit.worldgen.floatingisland.gen.base.RiverSmoother;
 
 public class FloatingIslandGenerator extends ChunkGenerator {
 
@@ -71,67 +70,6 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		}
 	}
 
-	public static boolean isRiverBorder(World w, BiomeGrid biomes, int realX,
-			int realZ, int x, int z) {
-		for (int xO = -1; xO >= 1; xO++) {
-			for (int zO = xO == 0 ? -1 : 0; zO >= 1; zO += 2) {
-				Biome here = null;
-				if (x >= 0 && z >= 0 && x < 16 && z < 16) {
-					here = biomes.getBiome(x, z);
-				} else {
-					here = w.getBiome(realX + x, realZ + z);
-				}
-				if (here != Biome.RIVER || here != Biome.FROZEN_RIVER) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	public static Point getNext(World w, BiomeGrid biomes, int realX,
-			int realZ, int x, int z, boolean[][] closed) {
-		for (int xO = -1; xO >= 1; xO++) {
-			for (int zO = -1; zO >= 1; zO++) {
-				if (xO == 0 && zO == 0) {
-					continue;
-				}
-				if ((x + xO) >= 0 && (z + zO) >= 0 && (x + xO) < 16
-						&& (z + zO) < 16) {
-					closed[x + xO][z + zO] = true;
-					if (!closed[x + xO][z + zO]
-							&& isRiverBorder(w, biomes, realX, realZ, x + xO, z
-									+ zO)) {
-						return new Point(x + xO, z + zO);
-					}
-				}
-			}
-		}
-		return null;
-	}
-
-	public static int getNeighbor(BiomeNoiseGenerator islandMap,
-			float[] biomeIntensity, int x, int y, int z, int divergence,
-			float thresh) {
-		for (int nY = 0; nY < divergence; nY++) {
-			for (int dY = -1; dY <= 1; dY += 2) {
-				double mHere = islandMap.noise(biomeIntensity, x,
-						y + (nY * dY), z);
-				double mBelow = islandMap.noise(biomeIntensity, x, y
-						+ (nY * dY) - 1, z);
-				double mAbove = islandMap.noise(biomeIntensity, x, y
-						+ (nY * dY) + 1, z);
-				double mDiff = ((Math.abs(mHere - mBelow) + Math.abs(mHere
-						- mAbove))) / 2.0;
-				if (mHere > thresh && mBelow < mHere && mAbove < mHere
-						&& mDiff > 1E-5) {
-					return y + (nY * dY);
-				}
-			}
-		}
-		return -1;
-	}
-
 	@Override
 	public byte[][] generateBlockSections(World w, Random random, int chunkX,
 			int chunkZ, BiomeGrid biomes) {
@@ -140,8 +78,12 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		BiomeIntensityGrid biomeValues = new BiomeIntensityGrid(w, biomes,
 				chunkX, chunkZ);
 		Baseline baseline = new BaselineLayer(w, chunkX, chunkZ, biomeValues);
-		baseline = new EdgeCleaner(w, chunkX, chunkZ, biomeValues, baseline);
-		
+//		baseline = new EdgeCleaner(w, chunkX, chunkZ, biomeValues, baseline);
+
+		RiverSmoother riverSmoother = new RiverSmoother(w, chunkX, chunkZ,
+				biomeValues, baseline);
+//		baseline = riverSmoother;
+
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
 
@@ -170,28 +112,6 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 			}
 		}
 
-		List<Point> border = new ArrayList<Point>();
-		boolean[][] closed = new boolean[16][16];
-		for (int x = 0; x < 16; x++) {
-			for (int z = 0; z < 16; z++) {
-				// Generate river border spec
-				if (!closed[x][z]
-						&& (closed[x][z] = isRiverBorder(w, biomes, realX,
-								realZ, x, z))) {
-					border.add(new Point(x, z));
-					while (true) {
-						Point last = border.get(border.size() - 1);
-						Point next = getNext(w, biomes, realX, realZ, last.x,
-								last.y, closed);
-						if (next == null) {
-							break;
-						}
-						border.add(next);
-					}
-				}
-			}
-		}
-
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
 				int noiseX = realX + x;
@@ -203,7 +123,10 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 				noise.setScale(7, config.hillNoise); // hill
 
 				int[] yS = baseline.getHeights(x, z);
-				for (int y : yS) {
+				int[] riverMeta = riverSmoother.getMeta(x, z);
+				for (int j = 0; j < yS.length; j++) {
+					int y = yS[j];
+
 					int islandTop = y;
 
 					int dirt = (int) Math.round(noise.noise(2, noiseX, noiseZ)
@@ -233,94 +156,17 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 					stone += hillHeight;
 
 					int yI = islandTop + dirt;
-					// TODO This causes issues. Noisy terrain, etc.
 
-					// if (biome == Biome.RIVER) {
-					// // Grab border size things
-					// Vector perpCurrent = new Vector(1, 0, 0);
-					// {
-					// int bestPt = -1;
-					// double bestDist = Double.MAX_VALUE;
-					// for (int i = 0; i < border.size(); i++) {
-					// int dX = border.get(i).x - x;
-					// int dZ = border.get(i).y - z;
-					// double dd = dX * dX + dZ * dZ;
-					// if (dd < bestDist) {
-					// bestDist = dd;
-					// bestPt = i;
-					// }
-					// }
-					// if (bestPt >= 0) {
-					// int oPt = bestPt > 0 ? bestPt - 1 : 1;
-					// if (oPt < border.size()) {
-					// Point a = border.get(bestPt);
-					// Point b = border.get(oPt);
-					// perpCurrent.setX(a.y - b.y);
-					// perpCurrent.setZ(b.x - a.x);
-					// perpCurrent.normalize();
-					// }
-					// }
-					// }
-					//
-					// // Blend height
-					// int count = 0;
-					// int totalY = 0;
-					// for (int sign = -1; sign <= 1; sign += 2) {
-					// int lastY = yI;
-					// for (int t = 1; t < 10; t++) {
-					// int tX = x
-					// + (int) Math.round(perpCurrent.getX()
-					// * t * sign);
-					// int tZ = z
-					// + (int) Math.round(perpCurrent.getZ()
-					// * t * sign);
-					// if (tX >= 0 && tZ >= 0 && tX < 16 && tZ < 16
-					// && biomes.getBiome(tX, tZ) == biome) {
-					// int res = baseline.getHeightNear(tX, lastY,
-					// tZ);
-					// if (Math.abs(lastY - res) <
-					// GenerationTuning.NEIGHBOR_TOLERANCE) {
-					// lastY = res;
-					// totalY += res;
-					// count++;
-					// continue;
-					// }
-					// }
-					// break;
-					// }
-					// }
-					// yI = (int) ((yI + totalY) / (1 + count));
-					//
-					// // Check biome neighbors
-					// count = 0;
-					// Biome replace = null;
-					// for (int xO = -1; xO <= 1; xO++) {
-					// for (int zO = xO == 0 ? -1 : 0; zO <= 1; zO += 2) {
-					// int resX = x + xO, resZ = z + zO;
-					// if (resX >= 0 && resZ >= 0 && resX < 16
-					// && resZ < 16) {
-					// Biome test = biomes.getBiome(resX, resZ);
-					// if (test == biome) {
-					// count++;
-					// } else {
-					// replace = test;
-					// }
-					// }
-					// }
-					// }
-					//
-					// if ((count <= 1) && replace != null) {
-					// biomes.setBiome(x, z, replace);
-					// biome = replace;
-					// config = IslandConfig.forBiome(replace);
-					// }
-					// }
-
-					if (biome == Biome.RIVER) {
-						// yI = (int) (5 * Math.floor(yI / 5.0)); // Ugly as
-						// // fuck
-						setBlock(chunkX, chunkZ, result, x, yI, z,
-								Material.GLOWSTONE);
+					if ((biome == Biome.RIVER || biome == Biome.FROZEN_RIVER)) {
+						setBlock(
+								chunkX,
+								chunkZ,
+								result,
+								x,
+								yI,
+								z,
+								(riverMeta == null || riverMeta[j] >= 0) ? Material.GLOWSTONE
+										: Material.LAPIS_BLOCK);
 					} else {
 						setBlock(
 								chunkX,

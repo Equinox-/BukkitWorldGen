@@ -3,8 +3,8 @@ package com.pi.bukkit.worldgen.floatingisland.gen;
 @SuppressWarnings("unused")
 public class GenerationTuning {
 	public static final int BIOME_OVERSAMPLE = 5;
-	public static final int HEIGHT_OVERSAMPLE = 2;
-	public static final int EDGE_OVERSAMPLE = 1;
+	public static final int HEIGHT_OVERSAMPLE = 3;
+	public static final int EDGE_OVERSAMPLE = 2;
 
 	public static final int NEIGHBOR_TOLERANCE = 10;
 	static {
