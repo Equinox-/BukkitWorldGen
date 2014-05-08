@@ -8,6 +8,9 @@ public class BiomeIntensityGrid implements BiomeGrid {
 	private static int BIOME_BLEND_RADIUS = 16;
 	private final int chunkX, chunkZ;
 	private final World world;
+	/**
+	 * If this is null it is a RO
+	 */
 	private final BiomeGrid backing;
 	private Biome[][] biomes;
 	private float[][][] intensity;
@@ -18,6 +21,13 @@ public class BiomeIntensityGrid implements BiomeGrid {
 		this.chunkX = chunkX;
 		this.chunkZ = chunkZ;
 		regenerateBiomeLevels();
+	}
+
+	private BiomeIntensityGrid(World w, int chunkX, int chunkZ) {
+		this.world = w;
+		this.backing = null;
+		this.chunkX = chunkX;
+		this.chunkZ = chunkZ;
 	}
 
 	private void applyBiome(int x, int z, Biome here, float mult) {
@@ -31,13 +41,17 @@ public class BiomeIntensityGrid implements BiomeGrid {
 						&& tZ < 16 + GenerationTuning.BIOME_OVERSAMPLE) {
 					intensity[tX + GenerationTuning.BIOME_OVERSAMPLE][tZ
 							+ GenerationTuning.BIOME_OVERSAMPLE][here.ordinal()] += mult
-							/ Math.sqrt(1.0 + (xO * xO + zO * zO)) / 10.89748;
+							/ (1.0 + (xO * xO + zO * zO));
 				}
 			}
 		}
 	}
 
 	public void regenerateBiomeLevels() {
+		if (backing == null) {
+			System.err.println("WARN: Attempt biome level regen on RO grid");
+			return;
+		}
 		intensity = new float[16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][Biome
 				.values().length];
 		biomes = new Biome[16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)];
@@ -97,11 +111,28 @@ public class BiomeIntensityGrid implements BiomeGrid {
 			biomes[x + GenerationTuning.BIOME_OVERSAMPLE][z
 					+ GenerationTuning.BIOME_OVERSAMPLE] = bio;
 			applyBiome(x, z, bio, 1f);
-			if (x >= 0 && z >= 0 && x < 16 && z < 16) {
-				backing.setBiome(x, z, bio);
-			} else {
-				world.setBiome((chunkX << 4) + x, (chunkZ << 4) + z, bio);
+			if (backing != null) {
+				if (x >= 0 && z >= 0 && x < 16 && z < 16) {
+					backing.setBiome(x, z, bio);
+				} else {
+					world.setBiome((chunkX << 4) + x, (chunkZ << 4) + z, bio);
+				}
 			}
 		}
+	}
+
+	@Override
+	public BiomeIntensityGrid clone() {
+		BiomeIntensityGrid g = new BiomeIntensityGrid(world, chunkX, chunkZ);
+		g.intensity = new float[16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][Biome
+				.values().length];
+		g.biomes = new Biome[16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)][16 + (GenerationTuning.BIOME_OVERSAMPLE * 2)];
+		for (int i = 0; i < 16 + (GenerationTuning.BIOME_OVERSAMPLE * 2); i++) {
+			System.arraycopy(intensity[i], 0, g.intensity[i], 0,
+					16 + (GenerationTuning.BIOME_OVERSAMPLE * 2));
+			System.arraycopy(biomes[i], 0, g.biomes[i], 0,
+					16 + (GenerationTuning.BIOME_OVERSAMPLE * 2));
+		}
+		return g;
 	}
 }

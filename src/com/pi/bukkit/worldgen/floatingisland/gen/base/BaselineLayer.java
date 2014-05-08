@@ -16,10 +16,12 @@ import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 public class BaselineLayer extends Baseline {
 	private final BiomeNoiseGenerator islandMap;
 	private final NoiseGenerator noiseRoot;
+	private final BiomeIntensityGrid tempGrid; 
 
 	public BaselineLayer(final World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing) {
 		super(w, chunkX, chunkZ, backing, GenerationTuning.HEIGHT_OVERSAMPLE);
+		this.tempGrid = backing.clone();
 		this.noiseRoot = new NoiseGenerator() {
 			private final OctaveGenerator gen = new SimplexOctaveGenerator(
 					new Random(w.getSeed()), 3);
@@ -41,8 +43,30 @@ public class BaselineLayer extends Baseline {
 		regenerateLayer();
 	}
 
+	private void resetRiverBiome() {
+		for (int x = 0; x < 16; x++) {
+			for (int z = 0; z < 16; z++) {
+				float[] intensity = tempGrid.getBiomeIntensity(x, z);
+
+				// Overwrite -> River
+				Biome best = null;
+				for (Biome b : Biome.values()) {
+					if (!RiverSmoother.isRiver(b)) {
+						if (best == null
+								|| intensity[b.ordinal()] > intensity[best
+										.ordinal()]) {
+							best = b;
+						}
+					}
+				}
+				tempGrid.setBiome(x, z, best);
+			}
+		}
+	}
+
 	public void regenerateLayer() {
 		allocHeightMap();
+		resetRiverBiome();
 
 		int[] results = new int[128];
 		int resultHead = 0;
@@ -52,7 +76,7 @@ public class BaselineLayer extends Baseline {
 
 				int noiseX = (chunkX << 4) + x;
 				int noiseZ = (chunkZ << 4) + z;
-				Biome biome = biomes.getBiome(x, z);
+				Biome biome = tempGrid.getBiome(x, z);
 
 				IslandConfig config = IslandConfig.forBiome(biome);
 
@@ -60,8 +84,8 @@ public class BaselineLayer extends Baseline {
 				{
 					double threshTotal = 0;
 					for (Biome b : Biome.values()) {
-						threshTotal += biomes.getBiomeIntensity(x, z, b);
-						islandYScale += biomes.getBiomeIntensity(x, z, b)
+						threshTotal += tempGrid.getBiomeIntensity(x, z, b);
+						islandYScale += tempGrid.getBiomeIntensity(x, z, b)
 								* IslandConfig.forBiome(b).islandScale.getY();
 					}
 					islandYScale /= threshTotal;
@@ -70,12 +94,12 @@ public class BaselineLayer extends Baseline {
 				for (int y = 0; y < 128; y++) {
 					float thresh = .5f;
 					final double maskHere = islandMap.noise(
-							biomes.getBiomeIntensity(x, z), noiseX, y, noiseZ);
+							tempGrid.getBiomeIntensity(x, z), noiseX, y, noiseZ);
 					final double maskBelow = islandMap.noise(
-							biomes.getBiomeIntensity(x, z), noiseX, y - 1,
+							tempGrid.getBiomeIntensity(x, z), noiseX, y - 1,
 							noiseZ);
 					final double maskAbove = islandMap.noise(
-							biomes.getBiomeIntensity(x, z), noiseX, y + 1,
+							tempGrid.getBiomeIntensity(x, z), noiseX, y + 1,
 							noiseZ);
 					final double maskDiff = ((Math.abs(maskHere - maskBelow) + Math
 							.abs(maskHere - maskAbove))) / 2.0;

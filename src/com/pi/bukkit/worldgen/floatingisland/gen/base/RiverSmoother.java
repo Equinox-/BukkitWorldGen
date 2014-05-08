@@ -6,19 +6,25 @@ import java.util.List;
 
 import org.bukkit.World;
 import org.bukkit.block.Biome;
-import org.bukkit.craftbukkit.CraftChunk;
 import org.bukkit.util.Vector;
 
 import com.pi.bukkit.worldgen.floatingisland.gen.BiomeIntensityGrid;
 import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 
 public class RiverSmoother extends BaselineTransform {
+	public static int RIVER_MASK = 0x10;
+	public static int RIVER_SHORE_MASK = 0x20 | RIVER_MASK;
+
+	private BiomeIntensityGrid riverGrid;
+
 	public RiverSmoother(World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing, Baseline parent) {
 		super(w, chunkX, chunkZ, backing, parent, 0);
+		riverGrid = backing.clone();
+		regenerateLayer();
 	}
 
-	private static boolean isRiver(Biome b) {
+	public static boolean isRiver(Biome b) {
 		return b == Biome.FROZEN_RIVER || b == Biome.RIVER;
 	}
 
@@ -55,8 +61,7 @@ public class RiverSmoother extends BaselineTransform {
 		return false;
 	}
 
-	private List<Point> getBorder() {
-		List<Point> border = new ArrayList<Point>();
+	private List<Point> getBorder(List<Point> border) {
 		boolean[][] closed = new boolean[16][16];
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
@@ -80,7 +85,9 @@ public class RiverSmoother extends BaselineTransform {
 	@Override
 	public void regenerateLayer() {
 		allocHeightMap();
-		List<Point> border = getBorder();
+		List<Point> border = new ArrayList<Point>();
+		getBorder(border);
+
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
 				int[] heights = parent.getHeights(x, z);
@@ -89,37 +96,56 @@ public class RiverSmoother extends BaselineTransform {
 				System.arraycopy(heights, 0, newHeights, 0, heights.length);
 				setHeights(x, z, newHeights);
 				setMetadata(x, z, meta);
-				if (isRiver(biomes.getBiome(x, z))) {
-					for (int j = 0; j < heights.length; j++) {
-						int y = heights[j];
-						Vector perpCurrent = new Vector(1, 0, 0);
-						Vector current = new Vector(0, 0, 1);
-						{
-							int bestPt = -1;
-							double bestDist = Double.MAX_VALUE;
-							for (int i = 0; i < border.size(); i++) {
-								int dX = border.get(i).x - x;
-								int dZ = border.get(i).y - z;
-								double dd = dX * dX + dZ * dZ;
-								if (dd < bestDist) {
-									bestDist = dd;
-									bestPt = i;
-								}
+			}
+		}
+		for (int x = 0; x < 16; x++) {
+			for (int z = 0; z < 16; z++) {
+				int[] newHeights = getHeights(x, z);
+				int[] meta = getMeta(x, z);
+				int[] heights = parent.getHeights(x, z);
+
+				if (isRiver(riverGrid.getBiome(x, z))) {
+					Vector perpCurrent = new Vector(1, 0, 0);
+					Vector current = new Vector(0, 0, 1);
+					{
+						int bestPt = -1;
+						double bestDist = Double.MAX_VALUE;
+						for (int i = 0; i < border.size(); i++) {
+							int dX = border.get(i).x - x;
+							int dZ = border.get(i).y - z;
+							double dd = dX * dX + dZ * dZ;
+							if (dd < bestDist) {
+								bestDist = dd;
+								bestPt = i;
 							}
-							if (bestPt >= 0) {
-								int oPt = bestPt > 0 ? bestPt - 1 : 1;
-								if (oPt < border.size()) {
-									Point a = border.get(bestPt);
-									Point b = border.get(oPt);
-									current.setX(a.x - b.x);
-									current.setY(a.y - b.y);
-									current.normalize();
-									perpCurrent.setX(a.y - b.y);
-									perpCurrent.setZ(b.x - a.x);
-									perpCurrent.normalize();
+						}
+						if (bestPt >= 0) {
+							Point a = border.get(bestPt);
+							current = current.multiply(0f);
+							for (int j = -3; j <= 3; j += 2) {
+								int opt = bestPt + j;
+								if (opt < 0) {
+									opt += border.size();
+								} else if (opt >= border.size()) {
+									opt -= border.size();
+								}
+								if (opt >= 0 && opt < border.size()) {
+									Point b = border.get(opt);
+									current.setX(current.getX() + (a.x - b.x));
+									current.setY(current.getY() + (a.y - b.y));
 								}
 							}
 						}
+					}
+					if (current.lengthSquared() > 0) {
+						current.normalize();
+					}
+					perpCurrent.setX(current.getZ());
+					perpCurrent.setY(-current.getY());
+					perpCurrent.normalize();
+
+					for (int j = 0; j < heights.length; j++) {
+						int y = heights[j];
 
 						// Blend height
 						int riverY, fallOffY = y;
@@ -128,12 +154,10 @@ public class RiverSmoother extends BaselineTransform {
 							double count = 0;
 							double totalY = 0;
 							int fallOffTime = 0;
-							for (Vector test : new Vector[] { perpCurrent,
-									current }) {
+							for (Vector test : new Vector[] { perpCurrent }) {
 								for (int sign = -1; sign <= 1; sign += 2) {
 									int lastY = y;
-									for (int t = 1; t < (test == current ? 10
-											: 10); t++) {
+									for (int t = 1; t < 10; t++) {
 										int tX = x
 												+ (int) Math.round(test.getX()
 														* t * sign);
@@ -141,19 +165,30 @@ public class RiverSmoother extends BaselineTransform {
 												+ (int) Math.round(test.getZ()
 														* t * sign);
 										if (parent.isInBounds(tX, tZ)) {
-											int res = parent.getHeightNear(tX,
-													lastY, tZ);
-											if (Math.abs(lastY - res) < GenerationTuning.NEIGHBOR_TOLERANCE) {
-												if (isRiver(biomes.getBiome(tX,
-														tZ))) {
-													lastY = res;
-													totalY += res;
-													count++;
-													continue;
+											int hI = parent.getHeightIndexNear(
+													tX, lastY, tZ);
+											if (hI >= 0) {
+												int res = parent.getHeights(tX,
+														tZ)[hI];
+												if (Math.abs(lastY - res) < GenerationTuning.NEIGHBOR_TOLERANCE) {
+													if (isRiver(riverGrid
+															.getBiome(tX, tZ))) {
+														lastY = res;
+														totalY += res;
+														count++;
+														if (isInBounds(tX, tZ)) {
+															getMeta(tX, tZ)[hI] |= 0x40;
+														}
+														continue;
+													}
 												}
+												fallOffY = Math.min(res,
+														fallOffY);
+												fallOffTime = t;
+											} else {
+												fallOffY = 0;
+												fallOffTime = t;
 											}
-											fallOffY = Math.min(res, fallOffY);
-											fallOffTime = t;
 										}
 										break;
 									}
@@ -170,7 +205,7 @@ public class RiverSmoother extends BaselineTransform {
 						for (int xO = -1; xO <= 1; xO++) {
 							for (int zO = -1; zO <= 1; zO++) {
 								int resX = x + xO, resZ = z + zO;
-								Biome test = biomes.getBiome(resX, resZ);
+								Biome test = riverGrid.getBiome(resX, resZ);
 								if (isRiver(test)) {
 									count++;
 								} else {
@@ -188,18 +223,22 @@ public class RiverSmoother extends BaselineTransform {
 							}
 						}
 
-						int finalRiverY = riverY//Math.min(fallOffY - 1, riverY)
-								- (dropCenter ? 1 : 0);
+						int finalRiverY = riverY - (dropCenter ? 1 : 0);
 						if (count <= 2/* || fallOffY <= riverY - 6 */
-								|| minNeighbor <= y - 1) {
-							meta[j] = -1;
+								|| minNeighbor <= y - 5) {
+							meta[j] = 0 | RIVER_SHORE_MASK;
 						} else {
 							newHeights[j] = finalRiverY;
-							meta[j] = dropCenter ? 1 : 0;
+							meta[j] = (dropCenter ? 1 : 0) | RIVER_MASK;
 						}
 					}
+					break;
 				}
 			}
 		}
+	}
+
+	public BiomeIntensityGrid getRiverGrid() {
+		return riverGrid;
 	}
 }

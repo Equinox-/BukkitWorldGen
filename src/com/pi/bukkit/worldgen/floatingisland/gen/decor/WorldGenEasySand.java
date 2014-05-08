@@ -17,6 +17,7 @@ public class WorldGenEasySand extends WorldGenerator {
 		this.maxSize = paramInt;
 	}
 
+	@Override
 	public boolean a(World world, Random random, int x,
 			int y, int z) {
 		if (world.getType(x, y, z).getMaterial() != Material.WATER)
@@ -33,7 +34,7 @@ public class WorldGenEasySand extends WorldGenerator {
 							Block localBlock = world.getType(xP, yP, zP);
 							Block belowBlock = world.getType(xP, yP - 1, zP);
 							if (((localBlock == Blocks.DIRT) || (localBlock == Blocks.GRASS))
-									&& belowBlock.getMaterial() == Material.AIR) {
+									&& belowBlock.getMaterial() != Material.AIR) {
 								world.setTypeAndData(xP, yP, zP, this.genBlock, 0,
 										2);
 							}

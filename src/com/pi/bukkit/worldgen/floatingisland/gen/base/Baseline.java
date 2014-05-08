@@ -43,6 +43,20 @@ public abstract class Baseline {
 		metaData = new int[16 + (2 * heightMapOversample)][16 + (2 * heightMapOversample)][];
 	}
 
+	public int getHeightIndexNear(int x, int y, int z) {
+		int[] res = getHeights(x, z);
+		int near = -1;
+		int cDist = 999999;
+		for (int i = 0; i < res.length; i++) {
+			int dist = Math.abs(res[i] - y);
+			if (dist < cDist) {
+				cDist = dist;
+				near = i;
+			}
+		}
+		return near;
+	}
+
 	public int getHeightNear(int x, int y, int z) {
 		int[] res = getHeights(x, z);
 		int near = -1;

@@ -11,7 +11,6 @@ public abstract class BaselineTransform extends Baseline {
 			BiomeIntensityGrid backing, Baseline parent, int heightMapOversample) {
 		super(w, chunkX, chunkZ, backing, heightMapOversample);
 		this.parent = parent;
-		regenerateLayer();
 	}
 
 	public abstract void regenerateLayer();

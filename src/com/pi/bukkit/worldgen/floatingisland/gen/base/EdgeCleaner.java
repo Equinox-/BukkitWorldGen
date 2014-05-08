@@ -10,6 +10,7 @@ public class EdgeCleaner extends BaselineTransform {
 			BiomeIntensityGrid backing, Baseline parent) {
 		super(w, chunkX, chunkZ, backing, parent,
 				GenerationTuning.EDGE_OVERSAMPLE);
+		regenerateLayer();
 	}
 
 	@Override
