@@ -16,7 +16,7 @@ import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 public class BaselineLayer extends Baseline {
 	private final BiomeNoiseGenerator islandMap;
 	private final NoiseGenerator noiseRoot;
-	private final BiomeIntensityGrid tempGrid; 
+	private final BiomeIntensityGrid tempGrid;
 
 	public BaselineLayer(final World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing) {
@@ -70,8 +70,11 @@ public class BaselineLayer extends Baseline {
 
 		int[] results = new int[128];
 		int resultHead = 0;
+		int yCounts = 0;
+		int tyc = 0;
 		for (int x = -heightMapOversample; x < 16 + heightMapOversample; x++) {
 			for (int z = -heightMapOversample; z < 16 + heightMapOversample; z++) {
+				tyc += 128;
 				resultHead = 0;
 
 				int noiseX = (chunkX << 4) + x;
@@ -90,11 +93,15 @@ public class BaselineLayer extends Baseline {
 					}
 					islandYScale /= threshTotal;
 				}
+				double maskLast = -1;
+				boolean longjmp = false;
 
 				for (int y = 0; y < 128; y++) {
+					yCounts++;
 					float thresh = .5f;
-					final double maskHere = islandMap.noise(
-							tempGrid.getBiomeIntensity(x, z), noiseX, y, noiseZ);
+					final double maskHere = islandMap
+							.noise(tempGrid.getBiomeIntensity(x, z), noiseX, y,
+									noiseZ);
 					final double maskBelow = islandMap.noise(
 							tempGrid.getBiomeIntensity(x, z), noiseX, y - 1,
 							noiseZ);
@@ -103,6 +110,19 @@ public class BaselineLayer extends Baseline {
 							noiseZ);
 					final double maskDiff = ((Math.abs(maskHere - maskBelow) + Math
 							.abs(maskHere - maskAbove))) / 2.0;
+					if (maskLast >= 0
+							&& longjmp
+							&& maskAbove > maskBelow
+							&& (Math.abs(maskAbove - maskHere) < Math
+									.abs(maskHere - maskLast) || Math
+									.signum(maskAbove - maskHere) != Math
+									.signum(maskHere - maskLast))) {
+						// reverse longjmp
+						y -= 5;
+						longjmp = false;
+						maskLast = -1;
+						continue;
+					}
 
 					if (maskHere > thresh && maskBelow < maskHere
 							&& maskAbove < maskHere && maskDiff > 1E-5) {
@@ -115,6 +135,7 @@ public class BaselineLayer extends Baseline {
 
 						int yI = islandTop + dirt;
 
+						longjmp = false;
 						y = Math.max(
 								y,
 								yI
@@ -124,7 +145,15 @@ public class BaselineLayer extends Baseline {
 												islandTop * 0.01D,
 												noiseZ * 0.01D) * .6 + 0.4)
 												* Math.sqrt(islandYScale / 0.0075D) * (2 + config.rootSpikeMax)));
+						maskLast = -1;
 					}
+					if (maskLast >= 0 && maskAbove < maskBelow) {
+						y += 5;
+						longjmp = true;
+					} else {
+						longjmp = false;
+					}
+					maskLast = maskHere;
 				}
 				int[] cpy = new int[resultHead];
 				System.arraycopy(results, 0, cpy, 0, resultHead);
