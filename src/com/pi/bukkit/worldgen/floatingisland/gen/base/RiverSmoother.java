@@ -2,6 +2,7 @@ package com.pi.bukkit.worldgen.floatingisland.gen.base;
 
 import java.awt.Point;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.bukkit.World;
@@ -20,7 +21,7 @@ public class RiverSmoother extends BaselineTransform {
 	public RiverSmoother(World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing, Baseline parent) {
 		super(w, chunkX, chunkZ, backing, parent, 0);
-		riverGrid = backing.clone();
+		riverGrid = backing;// backing.clone();
 		regenerateLayer();
 	}
 
@@ -47,13 +48,13 @@ public class RiverSmoother extends BaselineTransform {
 	}
 
 	private boolean isRiverBorder(int x, int z) {
-		if (!isRiver(biomes.getBiome(x, z))) {
+		if (!isRiver(riverGrid.getBiome(x, z))) {
 			return false;
 		}
-		for (int xO = -1; xO >= 1; xO++) {
-			for (int zO = xO == 0 ? -1 : 0; zO >= 1; zO += 2) {
-				Biome here = biomes.getBiome(x + xO, z + zO);
-				if (here != Biome.RIVER || here != Biome.FROZEN_RIVER) {
+		for (int xO = -1; xO <= 1; xO++) {
+			for (int zO = -1; zO <= 1; zO++) {
+				Biome here = riverGrid.getBiome(x + xO, z + zO);
+				if (!isRiver(here)) {
 					return true;
 				}
 			}
@@ -120,9 +121,9 @@ public class RiverSmoother extends BaselineTransform {
 							}
 						}
 						if (bestPt >= 0) {
-							Point a = border.get(bestPt);
 							current = current.multiply(0f);
-							for (int j = -3; j <= 3; j += 2) {
+							Point a = null;
+							for (int j = -3; j <= 3; j++) {
 								int opt = bestPt + j;
 								if (opt < 0) {
 									opt += border.size();
@@ -131,8 +132,13 @@ public class RiverSmoother extends BaselineTransform {
 								}
 								if (opt >= 0 && opt < border.size()) {
 									Point b = border.get(opt);
-									current.setX(current.getX() + (a.x - b.x));
-									current.setY(current.getY() + (a.y - b.y));
+									if (a != null) {
+										current.setX(current.getX()
+												+ (a.x - b.x));
+										current.setZ(current.getZ()
+												+ (a.y - b.y));
+									}
+									a = b;
 								}
 							}
 						}
@@ -141,8 +147,7 @@ public class RiverSmoother extends BaselineTransform {
 						current.normalize();
 					}
 					perpCurrent.setX(current.getZ());
-					perpCurrent.setY(-current.getY());
-					perpCurrent.normalize();
+					perpCurrent.setZ(-current.getX());
 
 					for (int j = 0; j < heights.length; j++) {
 						int y = heights[j];
@@ -176,9 +181,9 @@ public class RiverSmoother extends BaselineTransform {
 														lastY = res;
 														totalY += res;
 														count++;
-														if (isInBounds(tX, tZ)) {
-															getMeta(tX, tZ)[hI] |= 0x40;
-														}
+//														if (isInBounds(tX, tZ)) {
+//															getMeta(tX, tZ)[hI] |= 0x40;
+//														}
 														continue;
 													}
 												}
@@ -232,7 +237,6 @@ public class RiverSmoother extends BaselineTransform {
 							meta[j] = (dropCenter ? 1 : 0) | RIVER_MASK;
 						}
 					}
-					break;
 				}
 			}
 		}

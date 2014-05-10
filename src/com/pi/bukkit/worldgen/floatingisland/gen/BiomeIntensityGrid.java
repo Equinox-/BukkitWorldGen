@@ -12,7 +12,7 @@ public class BiomeIntensityGrid implements BiomeGrid {
 	 * If this is null it is a RO
 	 */
 	private final BiomeGrid backing;
-	private Biome[][] biomes;
+	public Biome[][] biomes;
 	private float[][][] intensity;
 
 	public BiomeIntensityGrid(World w, BiomeGrid backing, int chunkX, int chunkZ) {

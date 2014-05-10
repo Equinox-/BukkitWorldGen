@@ -183,10 +183,10 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 								z,
 								(riverMeta == null || (riverMeta[j] & RiverSmoother.RIVER_SHORE_MASK) != RiverSmoother.RIVER_SHORE_MASK) ? Material.STONE
 										: Material.DIRT);
-						if (riverMeta != null && (riverMeta[j] & 0x40) == 0x40) {
-							setBlock(chunkX, chunkZ, result, x, yI + 5, z,
-									Material.LAPIS_BLOCK);
-						}
+//						if (riverMeta != null && (riverMeta[j] & 0x40) == 0x40) {
+//							setBlock(chunkX, chunkZ, result, x, yI + 5, z,
+//									Material.LAPIS_BLOCK);
+//						}
 					} else {
 						setBlock(
 								chunkX,
@@ -223,10 +223,10 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 		long genTime = System.currentTimeMillis() - begin;
 
-		System.out.println("BIOME: " + (biomeTime / 1000.0f) + "\tBASE: "
-				+ (baselineTime / 1000.0f) + "\tEDGE: " + (edgeTime / 1000.0f)
-				+ "\tRIVER: " + (riverTime / 1000f) + "\tGEN: "
-				+ (genTime / 1000f));
+//		System.out.println("BIOME: " + (biomeTime / 1000.0f) + "\tBASE: "
+//				+ (baselineTime / 1000.0f) + "\tEDGE: " + (edgeTime / 1000.0f)
+//				+ "\tRIVER: " + (riverTime / 1000f) + "\tGEN: "
+//				+ (genTime / 1000f));
 		return result;
 	}
 
