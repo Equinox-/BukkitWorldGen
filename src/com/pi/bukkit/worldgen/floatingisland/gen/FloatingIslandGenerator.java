@@ -8,8 +8,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
-import org.bukkit.block.Block;
-import org.bukkit.block.Sign;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.util.noise.NoiseGenerator;
@@ -17,14 +15,14 @@ import org.bukkit.util.noise.SimplexNoiseGenerator;
 
 import com.pi.bukkit.worldgen.BiomeNoiseGenerator;
 import com.pi.bukkit.worldgen.DefferedDataPopulator;
-import com.pi.bukkit.worldgen.DefferedDataPopulator.SetBlockData;
 import com.pi.bukkit.worldgen.LayeredOctaveNoise;
 import com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.Baseline;
-import com.pi.bukkit.worldgen.floatingisland.gen.base.BaselineLayer;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.EdgeCleaner;
+import com.pi.bukkit.worldgen.floatingisland.gen.base.RiverContainer;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.RiverSmoother;
+import com.pi.bukkit.worldgen.floatingisland.gen.base.VoronoiBase;
 import com.pi.bukkit.worldgen.floatingisland.gen.decor.BiomeDecoratorPopulator;
 import com.pi.bukkit.worldgen.floatingisland.gen.terrain.LakesGenerator;
 
@@ -36,10 +34,8 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 	@Override
 	public List<BlockPopulator> getDefaultPopulators(World w) {
-		return Arrays.asList((BlockPopulator) dPop, new LakesGenerator()
-		/*
-		 * new RiverGenerator() , new SnowPopulator(),
-		 */, new BiomeDecoratorPopulator());
+		return Arrays.asList((BlockPopulator) dPop, new LakesGenerator(),
+				new BiomeDecoratorPopulator());
 	}
 
 	public FloatingIslandGenerator(FloatingIslandPlugin plugin) {
@@ -78,23 +74,15 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 			int chunkZ, BiomeGrid biomeOriginal) {
 		byte[][] result = new byte[24][];
 
-		long begin = System.currentTimeMillis();
 		BiomeIntensityGrid biomes = new BiomeIntensityGrid(w, biomeOriginal,
 				chunkX, chunkZ);
-		long biomeTime = System.currentTimeMillis() - begin;
-		begin += biomeTime;
-		Baseline baseline = new BaselineLayer(w, chunkX, chunkZ, biomes);
-		long baselineTime = System.currentTimeMillis() - begin;
-		begin += baselineTime;
-		baseline = new EdgeCleaner(w, chunkX, chunkZ, biomes, baseline);
-		long edgeTime = System.currentTimeMillis() - begin;
-		begin += edgeTime;
+		Baseline baseline = new VoronoiBase(w, chunkX, chunkZ, biomes);
+		// baseline = new EdgeCleaner(w, chunkX, chunkZ, biomes, baseline);
 
 		RiverSmoother riverSmoother = new RiverSmoother(w, chunkX, chunkZ,
 				biomes, baseline);
-		long riverTime = System.currentTimeMillis() - begin;
-		begin += riverTime;
 		baseline = riverSmoother;
+		baseline = new RiverContainer(w, chunkX, chunkZ, biomes, baseline);
 
 		int realX = chunkX << 4;
 		int realZ = chunkZ << 4;
@@ -169,24 +157,34 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 					int yI = islandTop + dirt;
 
-					if ((riverMeta == null || (riverMeta[j] & RiverSmoother.RIVER_MASK) == RiverSmoother.RIVER_MASK)) {
-						if (riverMeta != null && riverMeta[j] >= 1) {
-							setBlock(chunkX, chunkZ, result, x, yI + 1, z,
-									Material.STONE);
+					if (riverMeta != null
+							&& (riverMeta[j] & RiverSmoother.RIVER_MASK) == RiverSmoother.RIVER_MASK) {
+						if ((riverMeta[j] & RiverSmoother.RIVER_FALL_MASK) == RiverSmoother.RIVER_FALL_MASK) {
+							for (int yO = -10; yO <= 0; yO++) {
+								setBlock(chunkX, chunkZ, result, x, yI + yO, z,
+										Material.GRASS);
+							}
+						} else if ((riverMeta[j] & RiverSmoother.RIVER_SHORE_MASK) == RiverSmoother.RIVER_SHORE_MASK) {
+							for (int yO = -10; yO <= 0; yO++) {
+								setBlock(chunkX, chunkZ, result, x, yI + yO, z,
+										Material.GRASS);
+							}
+						} else {
+							int depth = (riverMeta[j] & RiverSmoother.RIVER_DEPTH_MASK);
+							for (int yO = 1; yO <= depth; yO++) {
+								setBlock(chunkX, chunkZ, result, x, yI + yO, z,
+										Material.WATER);
+							}
+							setBlock(
+									chunkX,
+									chunkZ,
+									result,
+									x,
+									yI,
+									z,
+									(riverMeta[j] & RiverSmoother.RIVER_ICE_MASK) == RiverSmoother.RIVER_ICE_MASK ? Material.ICE
+											: Material.WATER);
 						}
-						setBlock(
-								chunkX,
-								chunkZ,
-								result,
-								x,
-								yI,
-								z,
-								(riverMeta == null || (riverMeta[j] & RiverSmoother.RIVER_SHORE_MASK) != RiverSmoother.RIVER_SHORE_MASK) ? Material.STONE
-										: Material.DIRT);
-//						if (riverMeta != null && (riverMeta[j] & 0x40) == 0x40) {
-//							setBlock(chunkX, chunkZ, result, x, yI + 5, z,
-//									Material.LAPIS_BLOCK);
-//						}
 					} else {
 						setBlock(
 								chunkX,
@@ -221,12 +219,10 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 			}
 		}
 
-		long genTime = System.currentTimeMillis() - begin;
-
-//		System.out.println("BIOME: " + (biomeTime / 1000.0f) + "\tBASE: "
-//				+ (baselineTime / 1000.0f) + "\tEDGE: " + (edgeTime / 1000.0f)
-//				+ "\tRIVER: " + (riverTime / 1000f) + "\tGEN: "
-//				+ (genTime / 1000f));
+		// System.out.println("BIOME: " + (biomeTime / 1000.0f) + "\tBASE: "
+		// + (baselineTime / 1000.0f) + "\tEDGE: " + (edgeTime / 1000.0f)
+		// + "\tRIVER: " + (riverTime / 1000f) + "\tGEN: "
+		// + (genTime / 1000f));
 		return result;
 	}
 

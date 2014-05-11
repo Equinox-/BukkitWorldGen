@@ -2,7 +2,12 @@ package com.pi.bukkit.worldgen.floatingisland.gen.decor;
 
 import java.util.Random;
 
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlock;
+
 import net.minecraft.server.Block;
+import net.minecraft.server.BlockGravel;
+import net.minecraft.server.BlockSand;
 import net.minecraft.server.Blocks;
 import net.minecraft.server.Material;
 import net.minecraft.server.World;
@@ -18,10 +23,12 @@ public class WorldGenEasySand extends WorldGenerator {
 	}
 
 	@Override
-	public boolean a(World world, Random random, int x,
-			int y, int z) {
-		if (world.getType(x, y, z).getMaterial() != Material.WATER)
+	public boolean a(World world, Random random, int x, int y, int z) {
+		if (world.getType(x, y, z).getMaterial() != Material.WATER && y > 0
+				&& world.getType(x, y - 1, z) != Blocks.AIR)
 			return false;
+		BlockSand.instaFall = false;
+		BlockGravel.instaFall = false;
 		int size = random.nextInt(this.maxSize - 2) + 2;
 		int j = 2;
 		for (int xP = x - size; xP <= x + size; xP++) {
@@ -35,14 +42,16 @@ public class WorldGenEasySand extends WorldGenerator {
 							Block belowBlock = world.getType(xP, yP - 1, zP);
 							if (((localBlock == Blocks.DIRT) || (localBlock == Blocks.GRASS))
 									&& belowBlock.getMaterial() != Material.AIR) {
-								world.setTypeAndData(xP, yP, zP, this.genBlock, 0,
-										2);
+								world.setTypeAndData(xP, yP, zP, this.genBlock,
+										0, 2);
 							}
 						}
 					}
 				}
 			}
 		}
+		BlockSand.instaFall = true;
+		BlockGravel.instaFall = true;
 		return true;
 	}
 

@@ -5,6 +5,12 @@ import org.bukkit.World;
 import com.pi.bukkit.worldgen.floatingisland.gen.BiomeIntensityGrid;
 import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 
+/**
+ * Smooths out the edge of islands a bit
+ * 
+ * @author westin
+ * 
+ */
 public class EdgeCleaner extends BaselineTransform {
 	public EdgeCleaner(World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing, Baseline parent) {

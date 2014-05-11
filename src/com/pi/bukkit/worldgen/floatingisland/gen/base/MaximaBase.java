@@ -13,12 +13,19 @@ import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
 import com.pi.bukkit.worldgen.floatingisland.gen.BiomeIntensityGrid;
 import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 
-public class BaselineLayer extends Baseline {
+/**
+ * Generates a baseline from the maximas of 3D noise. Typically varies quite a
+ * bit. Rivers are not recommended.
+ * 
+ * @author westin
+ * 
+ */
+public class MaximaBase extends Baseline {
 	private final BiomeNoiseGenerator islandMap;
 	private final NoiseGenerator noiseRoot;
 	private final BiomeIntensityGrid tempGrid;
 
-	public BaselineLayer(final World w, int chunkX, int chunkZ,
+	public MaximaBase(final World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing) {
 		super(w, chunkX, chunkZ, backing, GenerationTuning.HEIGHT_OVERSAMPLE);
 		this.tempGrid = backing.clone();
@@ -70,11 +77,8 @@ public class BaselineLayer extends Baseline {
 
 		int[] results = new int[128];
 		int resultHead = 0;
-		int yCounts = 0;
-		int tyc = 0;
 		for (int x = -heightMapOversample; x < 16 + heightMapOversample; x++) {
 			for (int z = -heightMapOversample; z < 16 + heightMapOversample; z++) {
-				tyc += 128;
 				resultHead = 0;
 
 				int noiseX = (chunkX << 4) + x;
@@ -97,7 +101,6 @@ public class BaselineLayer extends Baseline {
 				boolean longjmp = false;
 
 				for (int y = 0; y < 128; y++) {
-					yCounts++;
 					float thresh = .5f;
 					final double maskHere = islandMap
 							.noise(tempGrid.getBiomeIntensity(x, z), noiseX, y,

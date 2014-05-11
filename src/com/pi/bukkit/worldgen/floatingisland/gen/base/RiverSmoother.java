@@ -2,7 +2,6 @@ package com.pi.bukkit.worldgen.floatingisland.gen.base;
 
 import java.awt.Point;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.bukkit.World;
@@ -12,9 +11,19 @@ import org.bukkit.util.Vector;
 import com.pi.bukkit.worldgen.floatingisland.gen.BiomeIntensityGrid;
 import com.pi.bukkit.worldgen.floatingisland.gen.GenerationTuning;
 
+/**
+ * Smooths rivers so that they are generally the same height perpendicular to their current.
+ * Generates metadata about what is a shore, ice, etc..
+ * Generates depth metadata
+ * @author westin
+ *
+ */
 public class RiverSmoother extends BaselineTransform {
 	public static int RIVER_MASK = 0x10;
 	public static int RIVER_SHORE_MASK = 0x20 | RIVER_MASK;
+	public static int RIVER_FALL_MASK = 0x40 | RIVER_MASK;
+	public static int RIVER_ICE_MASK = 0x80;
+	public static int RIVER_DEPTH_MASK = 0x07;
 
 	private BiomeIntensityGrid riverGrid;
 
@@ -94,16 +103,10 @@ public class RiverSmoother extends BaselineTransform {
 				int[] heights = parent.getHeights(x, z);
 				int[] newHeights = new int[heights.length];
 				int[] meta = new int[heights.length];
+				
 				System.arraycopy(heights, 0, newHeights, 0, heights.length);
 				setHeights(x, z, newHeights);
 				setMetadata(x, z, meta);
-			}
-		}
-		for (int x = 0; x < 16; x++) {
-			for (int z = 0; z < 16; z++) {
-				int[] newHeights = getHeights(x, z);
-				int[] meta = getMeta(x, z);
-				int[] heights = parent.getHeights(x, z);
 
 				if (isRiver(riverGrid.getBiome(x, z))) {
 					Vector perpCurrent = new Vector(1, 0, 0);
@@ -154,15 +157,17 @@ public class RiverSmoother extends BaselineTransform {
 
 						// Blend height
 						int riverY, fallOffY = y;
+						int fallOffTime = 0;
 						boolean dropCenter = false;
 						{
 							double count = 0;
 							double totalY = 0;
-							int fallOffTime = 0;
-							for (Vector test : new Vector[] { perpCurrent }) {
+							for (Vector test : new Vector[] { perpCurrent,
+									current }) {
 								for (int sign = -1; sign <= 1; sign += 2) {
 									int lastY = y;
-									for (int t = 1; t < 10; t++) {
+									for (int t = 1; t < (test == current ? 3
+											: 10); t++) {
 										int tX = x
 												+ (int) Math.round(test.getX()
 														* t * sign);
@@ -181,18 +186,19 @@ public class RiverSmoother extends BaselineTransform {
 														lastY = res;
 														totalY += res;
 														count++;
-//														if (isInBounds(tX, tZ)) {
-//															getMeta(tX, tZ)[hI] |= 0x40;
-//														}
 														continue;
 													}
 												}
-												fallOffY = Math.min(res,
-														fallOffY);
-												fallOffTime = t;
+												if (test == perpCurrent) {
+													fallOffY = Math.min(res,
+															fallOffY);
+													fallOffTime = t;
+												}
 											} else {
-												fallOffY = 0;
-												fallOffTime = t;
+												if (test == perpCurrent) {
+													fallOffY = 0;
+													fallOffTime = t;
+												}
 											}
 										}
 										break;
@@ -200,7 +206,7 @@ public class RiverSmoother extends BaselineTransform {
 								}
 							}
 							riverY = (int) ((y + totalY) / (1 + count));
-							dropCenter = (fallOffTime < (count / 4));
+							dropCenter = (fallOffTime > (count / 2));
 						}
 
 						// Check biome neighbors
@@ -228,13 +234,21 @@ public class RiverSmoother extends BaselineTransform {
 							}
 						}
 
-						int finalRiverY = riverY - (dropCenter ? 1 : 0);
-						if (count <= 2/* || fallOffY <= riverY - 6 */
+						int finalRiverY = Math.min(minNeighbor, riverY)
+								- (dropCenter ? 1 : 0);
+						if ((fallOffY <= y - 5 && fallOffTime <= 1)
 								|| minNeighbor <= y - 5) {
+							meta[j] = 0 | RIVER_FALL_MASK;
+						} else if (count <= 2) {
 							meta[j] = 0 | RIVER_SHORE_MASK;
 						} else {
 							newHeights[j] = finalRiverY;
-							meta[j] = (dropCenter ? 1 : 0) | RIVER_MASK;
+							meta[j] = ((dropCenter ? 1 : 0) & RIVER_DEPTH_MASK)
+									| RIVER_MASK;
+							if (!dropCenter
+									&& riverGrid.getBiome(x, z) == Biome.FROZEN_RIVER) {
+								meta[j] |= RIVER_ICE_MASK;
+							}
 						}
 					}
 				}
