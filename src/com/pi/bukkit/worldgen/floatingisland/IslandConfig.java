@@ -163,10 +163,10 @@ public class IslandConfig {
 		return absHillMax;
 	}
 
-	public int extSpikeMin = -4;
-	public int extSpikeMax = 4;
+	public int extSpikeMin = 0;//-4;
+	public int extSpikeMax = 0;//4;
 	public int rootSpikeMin = 4;
-	public int rootSpikeMax = 16;
+	public int rootSpikeMax = 24;//16;
 	public int minStoneMinThickness = 5;
 	public int maxStoneMinThickness = 7;
 

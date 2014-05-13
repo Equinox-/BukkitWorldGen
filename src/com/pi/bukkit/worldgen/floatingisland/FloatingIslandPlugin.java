@@ -12,7 +12,7 @@ import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.pi.bukkit.worldgen.floatingisland.gen.FloatingIslandGenerator;
+import com.pi.bukkit.worldgen.tropicfjord.TropicFjordGenerator;
 
 public class FloatingIslandPlugin extends JavaPlugin implements Listener {
 	private Logger log = Logger.getLogger("Minecraft");
@@ -58,7 +58,7 @@ public class FloatingIslandPlugin extends JavaPlugin implements Listener {
 
 	@Override
 	public ChunkGenerator getDefaultWorldGenerator(String world, String id) {
-		return new FloatingIslandGenerator(this);
+		return new TropicFjordGenerator();//new FloatingIslandGenerator(this);
 	}
 
 	@EventHandler(priority = EventPriority.HIGH)

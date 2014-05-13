@@ -1,4 +1,4 @@
-package com.pi.bukkit.worldgen.floatingisland.gen.decor;
+package com.pi.bukkit.worldgen.decor;
 
 import java.util.Random;
 

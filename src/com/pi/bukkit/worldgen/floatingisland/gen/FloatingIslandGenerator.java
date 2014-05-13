@@ -16,14 +16,13 @@ import org.bukkit.util.noise.SimplexNoiseGenerator;
 import com.pi.bukkit.worldgen.BiomeNoiseGenerator;
 import com.pi.bukkit.worldgen.DefferedDataPopulator;
 import com.pi.bukkit.worldgen.LayeredOctaveNoise;
+import com.pi.bukkit.worldgen.decor.BiomeDecoratorPopulator;
 import com.pi.bukkit.worldgen.floatingisland.FloatingIslandPlugin;
 import com.pi.bukkit.worldgen.floatingisland.IslandConfig;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.Baseline;
-import com.pi.bukkit.worldgen.floatingisland.gen.base.EdgeCleaner;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.RiverContainer;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.RiverSmoother;
 import com.pi.bukkit.worldgen.floatingisland.gen.base.VoronoiBase;
-import com.pi.bukkit.worldgen.floatingisland.gen.decor.BiomeDecoratorPopulator;
 import com.pi.bukkit.worldgen.floatingisland.gen.terrain.LakesGenerator;
 
 public class FloatingIslandGenerator extends ChunkGenerator {
@@ -76,10 +75,11 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 		BiomeIntensityGrid biomes = new BiomeIntensityGrid(w, biomeOriginal,
 				chunkX, chunkZ);
-		Baseline baseline = new VoronoiBase(w, chunkX, chunkZ, biomes);
+		Baseline voronoi = new VoronoiBase(w, chunkX, chunkZ, biomes);
+		Baseline baseline = voronoi;
 		// baseline = new EdgeCleaner(w, chunkX, chunkZ, biomes, baseline);
 
-		RiverSmoother riverSmoother = new RiverSmoother(w, chunkX, chunkZ,
+		Baseline riverSmoother = new RiverSmoother(w, chunkX, chunkZ,
 				biomes, baseline);
 		baseline = riverSmoother;
 		baseline = new RiverContainer(w, chunkX, chunkZ, biomes, baseline);
@@ -100,15 +100,12 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 		noise.setScale(8, 0.05D);
 
 		BiomeNoiseGenerator hillNoise = new BiomeNoiseGenerator(noiseRoot);
-		BiomeNoiseGenerator islandMap = new BiomeNoiseGenerator(noiseRoot);
 		for (Biome b : Biome.values()) {
 			IslandConfig cfg = IslandConfig.forBiome(b);
 			if (cfg != null) {
 				hillNoise.setScale(b, cfg.hillNoise);
-				islandMap.setScale(b, cfg.islandScale);
 			} else {
 				hillNoise.setScale(b, 0.02D);
-				islandMap.setScale(b, 0.01D);
 			}
 		}
 
@@ -124,6 +121,7 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 
 				int[] yS = baseline.getHeights(x, z);
 				int[] riverMeta = riverSmoother.getMeta(x, z);
+				int[] voronoiMeta = voronoi.getMeta(x, z);
 				for (int j = 0; j < yS.length; j++) {
 					int y = yS[j];
 
@@ -138,6 +136,11 @@ public class FloatingIslandGenerator extends ChunkGenerator {
 					int spikeHeight = (int) (noise.noise(4, noiseX, islandTop,
 							noiseZ) * (config.rootSpikeMax - config.rootSpikeMin))
 							+ config.rootSpikeMin;
+					if (voronoiMeta != null) {
+						spikeHeight = Math.max(config.rootSpikeMax
+								- voronoiMeta[j], 0);
+						spikeHeight += config.rootSpikeMin;
+					}
 
 					int spikeNoise = (int) (Math.pow(
 							noise.noise(3, noiseX, islandTop, noiseZ), 2) * (config.extSpikeMax - config.extSpikeMin))

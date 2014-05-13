@@ -26,13 +26,11 @@ public class VoronoiBase extends Baseline {
 
 	private NoiseGenerator noiseRoot;
 	private BiomeNoiseGenerator islandMap;
-	private BiomeIntensityGrid tempGrid;
 	private VoronoiGenerator voronoiNoise;
 
 	public VoronoiBase(final World w, int chunkX, int chunkZ,
 			BiomeIntensityGrid backing) {
 		super(w, chunkX, chunkZ, backing, GenerationTuning.HEIGHT_OVERSAMPLE);
-		this.tempGrid = backing.clone();
 		this.noiseRoot = new NoiseGenerator() {
 			private final OctaveGenerator gen = new SimplexOctaveGenerator(
 					new Random(w.getSeed()), 3);
@@ -42,7 +40,7 @@ public class VoronoiBase extends Baseline {
 				return gen.noise(x, y, z, 0.5, 0.5);
 			}
 		};
-		this.voronoiNoise = new VoronoiGenerator(w.getSeed(), (short) 0);
+		this.voronoiNoise = new VoronoiGenerator(w.getSeed(), (short) 3);
 		this.islandMap = new BiomeNoiseGenerator(noiseRoot);
 		for (Biome b : Biome.values()) {
 			IslandConfig cfg = IslandConfig.forBiome(b);
@@ -64,10 +62,10 @@ public class VoronoiBase extends Baseline {
 		int resultHead = 0;
 
 		final double maxHeight = 128;
-		final double islandScale = .01;
+		final double islandScale = .0025; // smaller = larger islands
 		final int islandLayers = 3; // >1
 		final int islandSpacing = 30;
-		final double distScale = 0.02;
+		final double distScale = 0.02; // larger = smaller areas between gaps
 
 		for (int x = -heightMapOversample; x < 16 + heightMapOversample; x++) {
 			for (int z = -heightMapOversample; z < 16 + heightMapOversample; z++) {
@@ -92,15 +90,17 @@ public class VoronoiBase extends Baseline {
 					// Smooths edges of island by noise function
 					double dX = nearest.getX() - (worldX * islandScale);
 					double dZ = nearest.getZ() - (worldZ * islandScale);
-					double centerLevel = Math.sqrt(dX * dX + dZ * dZ);
-					if (centerLevel > Math.pow(noiseRoot.noise(worldX
-							* distScale, y * distScale, worldZ * distScale), 2)) {
+					double centerLevel = dX * dX + dZ * dZ;
+					if (Math.sqrt(centerLevel) > Math.pow(noiseRoot.noise(
+							worldX * distScale, height * distScale, worldZ
+									* distScale), 2)) {
 						continue;
 					}
 					if (lHeightHere < 0
 							|| Math.abs(lHeightHere - height) > islandSpacing) {
 						results[resultHead] = height;
-						metaResults[resultHead] = (int) (centerLevel / islandScale);
+						metaResults[resultHead] = (int) (centerLevel
+								/ islandScale / islandScale);
 						++resultHead;
 						lHeightHere = height;
 					}

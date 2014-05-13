@@ -23,6 +23,8 @@ public class VoronoiGenerator {
 			return Math.sqrt(xDist * xDist + zDist * zDist) / SQRT_2;
 		case 1:
 			return xDist + zDist;
+		case 3:
+			return Math.abs(xDist) + Math.abs(zDist);
 		case 2:
 			return Math.pow(Math.E, Math.sqrt(xDist * xDist + zDist * zDist)
 					/ SQRT_2)
@@ -39,6 +41,8 @@ public class VoronoiGenerator {
 					/ SQRT_3;
 		case 1:
 			return xDist + yDist + zDist;
+		case 3:
+			return Math.abs(xDist) + Math.abs(yDist) + Math.abs(zDist);
 		default:
 			return 1.0;
 		}
@@ -69,7 +73,7 @@ public class VoronoiGenerator {
 						+ valueNoise2D(xCur, zCur, new Random(seed).nextLong());
 				double xDist = xPos - x;
 				double zDist = zPos - z;
-				double dist = xDist * xDist + zDist * zDist;
+				double dist = getDistance(xDist, zDist);
 
 				if (dist < minDist) {
 					minDist = dist;
@@ -106,7 +110,7 @@ public class VoronoiGenerator {
 					double xDist = xPos - x;
 					double yDist = yPos - y;
 					double zDist = zPos - z;
-					double dist = xDist * xDist + yDist * yDist + zDist * zDist;
+					double dist = getDistance(xDist, yDist, zDist);
 
 					if (dist < minDist) {
 						minDist = dist;

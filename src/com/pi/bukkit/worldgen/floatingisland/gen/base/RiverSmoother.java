@@ -212,15 +212,12 @@ public class RiverSmoother extends BaselineTransform {
 						// Check biome neighbors
 						int count = 0;
 						int minNeighbor = y;
-						Biome replace = null;
 						for (int xO = -1; xO <= 1; xO++) {
 							for (int zO = -1; zO <= 1; zO++) {
 								int resX = x + xO, resZ = z + zO;
 								Biome test = riverGrid.getBiome(resX, resZ);
 								if (isRiver(test)) {
 									count++;
-								} else {
-									replace = test;
 								}
 								if (parent.isInBounds(resX, resZ)) {
 									int res = parent
